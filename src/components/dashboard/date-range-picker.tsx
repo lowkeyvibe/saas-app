@@ -159,7 +159,7 @@ function MonthGrid({
     ...Array.from({ length: daysInMonth }, (_, i) => new Date(Date.UTC(month.y, month.m, i + 1)).toISOString().slice(0, 10)),
   ];
 
-  const navBtn = "grid size-8 place-items-center rounded-md text-muted transition hover:bg-white/[0.06] hover:text-foreground";
+  const navBtn = "grid size-8 place-items-center rounded-md text-muted transition hover:bg-overlay/[0.06] hover:text-foreground";
 
   return (
     <div className="w-[252px]">
@@ -229,7 +229,7 @@ function MonthGrid({
                     ? `bg-brand font-semibold text-white ${roundL} ${roundR} ${shown.from === shown.to ? "rounded-md" : ""}`
                     : inside
                       ? `bg-brand/20 text-foreground hover:bg-brand/35 ${roundL} ${roundR}`
-                      : `rounded-md hover:bg-white/[0.06] hover:text-foreground ${
+                      : `rounded-md hover:bg-overlay/[0.06] hover:text-foreground ${
                           day === MAX_DATE ? "font-semibold text-violet-300" : "text-muted"
                         }`
               }`}
@@ -260,7 +260,7 @@ function InlineSelect({
         aria-label={label}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-8 cursor-pointer appearance-none rounded-md bg-transparent pl-2 pr-6 text-sm font-medium text-foreground hover:bg-white/[0.06] focus:outline-none"
+        className="h-8 cursor-pointer appearance-none rounded-md bg-transparent pl-2 pr-6 text-sm font-medium text-foreground hover:bg-overlay/[0.06] focus:outline-none"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} className="bg-surface-2">

@@ -1,15 +1,4 @@
-import {
-  LayoutDashboard,
-  Package,
-  Receipt,
-  Users,
-  Wallet,
-  Store,
-  Megaphone,
-  Settings,
-  Archive,
-  type LucideIcon,
-} from "lucide-react";
+import { Archive, LayoutDashboard, Receipt, Wallet, type LucideIcon } from "lucide-react";
 import { inactiveStores } from "@/lib/mock-data";
 
 export type NavItem = {
@@ -22,10 +11,8 @@ export type NavItem = {
 
 export const mainNav: NavItem[] = [
   { label: "Resumen", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Productos", href: "/dashboard/productos", icon: Package },
+  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
   { label: "Ventas", href: "/dashboard/ventas", icon: Receipt },
-  { label: "Clientes", href: "/dashboard/clientes", icon: Users },
-  { label: "Pagos", href: "/dashboard/pagos", icon: Wallet },
   {
     label: "Tiendas inactivas",
     href: "/dashboard/tiendas-inactivas",
@@ -34,8 +21,6 @@ export const mainNav: NavItem[] = [
   },
 ];
 
-export const secondaryNav: NavItem[] = [
-  { label: "Mi tienda", href: "/dashboard/tienda", icon: Store, soon: true },
-  { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone, soon: true },
-  { label: "Configuración", href: "/dashboard/configuracion", icon: Settings },
-];
+// Sección "Tienda" de la columna: hoy vacía (si no tiene ítems, no se muestra).
+// Configuración y la configuración de cada tienda se abren desde el engranaje del encabezado.
+export const secondaryNav: NavItem[] = [];

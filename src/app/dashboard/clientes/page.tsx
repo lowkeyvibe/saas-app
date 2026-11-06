@@ -34,7 +34,7 @@ export default function ClientesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {sorted.map((c) => (
-                <tr key={c.id} className="transition hover:bg-white/[0.02]">
+                <tr key={c.id} className="transition hover:bg-overlay/[0.02]">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-medium text-muted">

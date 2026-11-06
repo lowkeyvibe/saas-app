@@ -139,7 +139,7 @@ export function ProductSwitcher({
                     onClick={() => choose(p)}
                     onMouseEnter={() => setHighlight(i)}
                     className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm ${
-                      i === highlight ? "bg-white/[0.06] text-foreground" : "text-muted"
+                      i === highlight ? "bg-overlay/[0.06] text-foreground" : "text-muted"
                     }`}
                   >
                     <Thumb p={p} />
@@ -165,7 +165,7 @@ export function ProductSwitcher({
                 setOpen(false);
                 onNavigate?.();
               }}
-              className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted hover:bg-white/[0.04] hover:text-foreground"
+              className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted hover:bg-overlay/[0.04] hover:text-foreground"
             >
               <Plus className="size-4" />
               Nuevo producto

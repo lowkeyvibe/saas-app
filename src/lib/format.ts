@@ -17,6 +17,16 @@ export function formatMoney(value: number) {
   return money.format(value);
 }
 
+// Monto en cualquier moneda, con el mismo formato que el resto de la app: "US$ 1,482.50", "MXN 850.00", "ARS 310,000".
+export function formatCurrency(value: number, code: string, decimals = 2) {
+  const prefix = code === "USD" ? "US$" : code === "EUR" ? "€" : code;
+  const number = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+  return `${prefix} ${number}`;
+}
+
 export function formatCompactMoney(value: number) {
   return `$${compact.format(value)}`;
 }
@@ -41,6 +51,28 @@ export function formatDateTime(iso: string) {
     minute: "2-digit",
     timeZone: "UTC",
   }).format(new Date(iso));
+}
+
+// "hoy 10:39 p. m.", "ayer 08:26 a. m.", "martes 07:38 a. m." o "28 oct 07:38 a. m." si pasó más de una semana.
+// `today` es la fecha de hoy como "AAAA-MM-DD".
+export function formatRelativeDateTime(iso: string, today: string) {
+  const date = new Date(iso);
+  const time = new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(date);
+  const daysAgo = Math.round(
+    (new Date(`${today}T00:00:00Z`).getTime() - new Date(`${iso.slice(0, 10)}T00:00:00Z`).getTime()) / 86_400_000,
+  );
+  let day: string;
+  if (daysAgo === 0) day = "hoy";
+  else if (daysAgo === 1) day = "ayer";
+  else if (daysAgo > 1 && daysAgo < 7)
+    day = new Intl.DateTimeFormat("es-AR", { weekday: "long", timeZone: "UTC" }).format(date);
+  else day = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
+  return `${day} ${time}`;
 }
 
 export function initials(name: string) {

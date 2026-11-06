@@ -37,7 +37,7 @@ export default function ProductosPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {products.map((p) => (
-                <tr key={p.id} className="transition hover:bg-white/[0.02]">
+                <tr key={p.id} className="transition hover:bg-overlay/[0.02]">
                   <td className="px-5 py-3">
                     <Link href={`/dashboard/productos/${p.id}`} className="group flex items-center gap-3">
                       <ProductThumb color={p.color} name={p.name} />
@@ -54,7 +54,7 @@ export default function ProductosPage() {
                   <td className="px-5 py-3 text-right tabular-nums text-muted">{formatNumber(p.sales)}</td>
                   <td className="px-5 py-3 text-right font-medium tabular-nums">{formatMoney(p.revenue)}</td>
                   <td className="px-5 py-3">
-                    <button className="rounded-md p-1 text-subtle hover:bg-white/5 hover:text-foreground" aria-label="Opciones">
+                    <button className="rounded-md p-1 text-subtle hover:bg-overlay/5 hover:text-foreground" aria-label="Opciones">
                       <MoreHorizontal className="size-4" />
                     </button>
                   </td>

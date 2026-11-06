@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, ExternalLink, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Menu, Settings, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import { SidebarContent, Logo } from "./sidebar";
+import { ThemeToggle } from "./theme-toggle";
+import { NotificationsMenu } from "./notifications-menu";
+import { UserMenu } from "./user-menu";
 
 const user = { name: "Lautaro Carbone", store: "lautaro.nexo.app" };
+
+// Botones cuadrados del encabezado (notificaciones, tema y configuración).
+const iconButton =
+  "relative grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-muted transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-foreground";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -60,7 +68,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-md p-1.5 text-muted hover:bg-white/5 lg:hidden"
+            className="rounded-md p-1.5 text-muted hover:bg-overlay/5 lg:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="size-5" />
@@ -69,38 +77,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Logo />
           </div>
 
-          <div className="relative hidden max-w-sm flex-1 md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-            <input
-              placeholder="Buscar productos, ventas, clientes…"
-              className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm placeholder:text-subtle focus:border-violet-500/60 focus:outline-none"
-            />
+          {/* Buscador y, a su derecha, notificaciones y tema. */}
+          <div className="flex items-center gap-2 md:max-w-md md:flex-1">
+            <div className="relative hidden flex-1 md:block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
+              <input
+                placeholder="Buscar productos, ventas, clientes…"
+                className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm placeholder:text-subtle focus:border-violet-500/60 focus:outline-none"
+              />
+            </div>
+            <NotificationsMenu buttonClassName={iconButton} />
+            <ThemeToggle className={iconButton} />
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             <a
               href="#"
-              className="hidden items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-white/5 hover:text-foreground sm:flex"
+              className="hidden items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-overlay/5 hover:text-foreground sm:flex"
             >
               Ver mi tienda
               <ExternalLink className="size-3.5" />
             </a>
-            <button
-              className="relative rounded-lg p-2 text-muted transition hover:bg-white/5 hover:text-foreground"
-              aria-label="Notificaciones"
-            >
-              <Bell className="size-4" />
-              <span className="absolute right-2 top-2 size-1.5 rounded-full bg-brand" />
-            </button>
-            <div className="flex items-center gap-2.5 pl-1">
-              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 text-xs font-semibold">
-                LC
-              </span>
-              <div className="hidden leading-tight xl:block">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-subtle">{user.store}</p>
-              </div>
-            </div>
+            <Link href="/dashboard/configuracion" className={iconButton} aria-label="Configuración" title="Configuración">
+              <Settings className="size-4" />
+            </Link>
+            <UserMenu name={user.name} store={user.store} />
           </div>
         </header>
 

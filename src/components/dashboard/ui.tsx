@@ -57,7 +57,7 @@ export function buttonStyles(variant: "primary" | "secondary" = "primary") {
   const styles =
     variant === "primary"
       ? "bg-brand text-white hover:bg-violet-500 shadow-lg shadow-violet-500/20"
-      : "border border-border text-foreground hover:bg-white/5";
+      : "border border-border text-foreground hover:bg-overlay/5";
   return `inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition ${styles}`;
 }
 
@@ -160,5 +160,46 @@ export function ProductThumb({ color, name }: { color: string; name: string }) {
     >
       {name[0]}
     </span>
+  );
+}
+
+// Barra de progreso de la app: degradé violeta, brillo arriba, punto luminoso en la punta
+// y una animación que la hace crecer al aparecer. `emphasis` le suma un resplandor (para el primer puesto).
+export function MeterBar({
+  value,
+  emphasis = false,
+  size = "md",
+  className = "",
+}: {
+  value: number; // de 0 a 1
+  emphasis?: boolean;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  const pct = Math.max(0, Math.min(1, value)) * 100;
+  return (
+    <div
+      className={`relative w-full rounded-full bg-surface-2 ring-1 ring-inset ring-overlay/[0.04] ${size === "sm" ? "h-1.5" : "h-2.5"} ${className}`}
+      role="meter"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(pct)}
+    >
+      <div
+        className={`relative h-full origin-left rounded-full bg-gradient-to-r from-violet-700 via-violet-500 to-violet-400 transition-transform duration-700 ease-out starting:scale-x-0 ${
+          emphasis ? "shadow-[0_0_14px_rgba(139,92,246,0.55)]" : ""
+        }`}
+        style={{ width: `${pct}%` }}
+      >
+        <span className="absolute inset-x-1 top-0 h-1/2 rounded-full bg-white/20" />
+        {pct >= 4 && (
+          <span
+            className={`absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full bg-violet-100 shadow-[0_0_6px_rgba(221,214,254,0.9)] ${
+              size === "sm" ? "size-1" : "size-1.5"
+            }`}
+          />
+        )}
+      </div>
+    </div>
   );
 }

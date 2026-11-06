@@ -27,7 +27,8 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
       ? pathname === item.href
       : item.href === "/dashboard/productos"
         ? pathname === item.href
-        : pathname.startsWith(item.href);
+        : // Con "/" al final para que "Tiendas" no quede marcado en "Tiendas inactivas".
+          pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
   if (item.soon) {
@@ -48,14 +49,14 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
       onClick={onNavigate}
       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
         active
-          ? "bg-white/[0.06] font-medium text-foreground"
-          : "text-muted hover:bg-white/[0.03] hover:text-foreground"
+          ? "bg-overlay/[0.06] font-medium text-foreground"
+          : "text-muted hover:bg-overlay/[0.03] hover:text-foreground"
       }`}
     >
       <Icon className={`size-4 ${active ? "text-brand" : ""}`} />
       {item.label}
       {item.badge !== undefined && (
-        <span className="ml-auto rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted">
+        <span className="ml-auto rounded-full bg-overlay/[0.06] px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted">
           {item.badge}
         </span>
       )}
@@ -120,16 +121,18 @@ function GeneralNav({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div>
-        <p className="mb-2 px-3 text-[11px] font-medium uppercase tracking-wider text-subtle">
-          Tienda
-        </p>
-        <nav className="flex flex-col gap-0.5">
-          {secondaryNav.map((item) => (
-            <NavLink key={item.href} item={item} onNavigate={onNavigate} />
-          ))}
-        </nav>
-      </div>
+      {secondaryNav.length > 0 && (
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-medium uppercase tracking-wider text-subtle">
+            Tienda
+          </p>
+          <nav className="flex flex-col gap-0.5">
+            {secondaryNav.map((item) => (
+              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+            ))}
+          </nav>
+        </div>
+      )}
     </>
   );
 }
@@ -155,7 +158,7 @@ function ProductsNav({ onNavigate }: { onNavigate?: () => void }) {
       <div>
         <p className="mb-2 flex items-center justify-between px-1 text-[11px] font-medium uppercase tracking-wider text-subtle">
           Producto
-          <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-muted">
+          <span className="rounded-full bg-overlay/[0.06] px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-muted">
             {products.length} en total
           </span>
         </p>

@@ -1,33 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, Crown, DollarSign, Medal, Receipt, ShoppingBag, Store, Wallet } from "lucide-react";
 import {
-  Button,
+  ArrowRight,
+  Clock,
+  Crown,
+  DollarSign,
+  Medal,
+  Receipt,
+  ShoppingBag,
+  Store,
+  Wallet,
+} from "lucide-react";
+import {
+  buttonStyles,
   Card,
   CardHeader,
   PageHeader,
+  MeterBar,
   ProductThumb,
   StatCard,
 } from "@/components/dashboard/ui";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import { OrderDrawer } from "@/components/dashboard/order-drawer";
+import { SalesTable } from "@/components/dashboard/sales-table";
+import { HideColumnsMenu } from "@/components/dashboard/hide-columns-menu";
 import { DateRangePicker, presetLabel, type RangeSelection } from "@/components/dashboard/date-range-picker";
+import { QuickRanges } from "@/components/dashboard/quick-ranges";
 import { ProductFilter } from "@/components/dashboard/product-filter";
-import { percentChange, presetRange, storeRanking, summarizeRange, type RangePreset } from "@/lib/analytics";
-import { activeStores, inactiveStores, productById, sales, stats } from "@/lib/mock-data";
-import { formatDateTime, formatMoney, formatNumber, formatRange, initials } from "@/lib/format";
+import { percentChange, presetRange, storeRanking, summarizeRange } from "@/lib/analytics";
+import {
+  activeStores,
+  inactiveStores,
+  productById,
+  sales,
+  stats,
+  type Sale,
+} from "@/lib/mock-data";
+import { formatMoney, formatNumber, formatRange } from "@/lib/format";
 
 const DEFAULT_PRESET = "30d";
-
-// Atajos rápidos junto al calendario.
-const QUICK_RANGES: { value: RangePreset; label: string }[] = [
-  { value: "hoy", label: "Hoy" },
-  { value: "ayer", label: "Ayer" },
-  { value: "7d", label: "7 días" },
-  { value: "30d", label: "Un mes" },
-  { value: "maximo", label: "Histórico" },
-];
 
 export function Overview() {
   const [range, setRange] = useState<RangeSelection>({ ...presetRange(DEFAULT_PRESET), preset: DEFAULT_PRESET });
@@ -39,6 +52,23 @@ export function Overview() {
     [range, productId, includeInactive],
   );
   const prev = summary.previous;
+
+  // Columnas de "Últimas ventas" difuminadas para compartir pantalla. Se recuerdan en este navegador.
+  const [hiddenCols, setHiddenCols] = useState<Set<SaleColumn>>(new Set());
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HIDDEN_COLS_KEY) ?? "[]") as SaleColumn[];
+      const valid = saved.filter((k) => SALE_COLUMNS.some((c) => c.key === k));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- se lee del navegador después de montar
+      if (valid.length) setHiddenCols(new Set(valid));
+    } catch {
+      // Si lo guardado está roto, se arranca sin columnas ocultas.
+    }
+  }, []);
+  const updateHiddenCols = (next: Set<SaleColumn>) => {
+    setHiddenCols(next);
+    localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next]));
+  };
   // Lo elegido en el menú: un producto o una tienda inactiva.
   const product = productId ? summary.byProduct.find((e) => e.id === productId) : undefined;
 
@@ -49,7 +79,7 @@ export function Overview() {
       ? `Así vienen ${whose} del ${rangeLabel}.`
       : `Así vienen ${whose}: ${presetLabel(range.preset).toLowerCase()} (${rangeLabel}).`;
   const deltaHint = `vs. ${summary.days === 1 ? "día" : `${summary.days} días`} anteriores`;
-  const recent = sales.filter((s) => !productId || s.productId === productId).slice(0, 6);
+  const recent = sales.filter((s) => !productId || s.productId === productId).slice(0, RECENT_SALES);
   const storeRevenue = summary.byProduct.reduce((a, e) => a + e.revenue, 0);
 
   // Pie de la card de tiendas: a qué tienda pertenece lo elegido o cuántas vendieron en el período.
@@ -88,23 +118,7 @@ export function Overview() {
             if (!include && product?.kind === "tienda-inactiva") setProductId(null);
           }}
         />
-        <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-surface p-1">
-          {QUICK_RANGES.map((q) => (
-            <button
-              key={q.value}
-              type="button"
-              onClick={() => setRange({ ...presetRange(q.value), preset: q.value })}
-              aria-pressed={range.preset === q.value}
-              className={`h-full rounded-md px-3 text-xs font-medium transition ${
-                range.preset === q.value
-                  ? "bg-brand text-white shadow-lg shadow-violet-500/20"
-                  : "text-muted hover:bg-white/[0.04] hover:text-foreground"
-              }`}
-            >
-              {q.label}
-            </button>
-          ))}
-        </div>
+        <QuickRanges value={range} onChange={setRange} />
         <div className="ml-auto">
           <DateRangePicker value={range} onApply={setRange} />
         </div>
@@ -161,7 +175,9 @@ export function Overview() {
               </div>
               <p className="text-right text-xs text-subtle">Se acredita<br />en 2 días</p>
             </div>
-            <Button className="mt-auto w-full justify-center">Retirar dinero</Button>
+            <Link href="/dashboard/wallet" className={`${buttonStyles()} mt-auto w-full justify-center`}>
+              Ir a la Wallet
+            </Link>
           </div>
         </Card>
 
@@ -179,47 +195,60 @@ export function Overview() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
-        <Card className="overflow-hidden xl:col-span-2">
-          <CardHeader title="Top 5 tiendas" description="Histórico · las tiendas con más ventas desde que se crearon" />
-          <StoreRankingTable />
-        </Card>
+      {/* Últimas ventas: tabla a todo el ancho, debajo de "Tu saldo" e "Ingresos diarios". */}
+      {/* Sin overflow-hidden para que el menú de "Ocultar datos" no quede recortado. */}
+      <Card className="mt-4">
+        <div className="flex items-center gap-3 px-5 pt-5">
+          <h2 className="text-sm font-medium">Últimas ventas</h2>
+          <HideColumnsMenu columns={SALE_COLUMNS} hidden={hiddenCols} onChange={updateHiddenCols} />
+          <Link
+            href="/dashboard/ventas"
+            className="ml-auto flex items-center gap-1 text-xs text-muted hover:text-foreground"
+          >
+            Ver todas <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+        <RecentSalesTable rows={recent} hidden={hiddenCols} />
+      </Card>
 
-        <Card>
-          <CardHeader
-            title="Últimas ventas"
-            action={
-              <Link href="/dashboard/ventas" className="flex items-center gap-1 text-xs text-muted hover:text-foreground">
-                Ver todas <ArrowRight className="size-3.5" />
-              </Link>
-            }
-          />
-          <div className="mt-3 divide-y divide-border">
-            {recent.map((s) => {
-              const p = productById(s.productId)!;
-              return (
-                <div key={s.id} className="flex items-center gap-3 px-5 py-3">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-medium text-muted">
-                    {initials(s.customer)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{s.customer}</p>
-                    <p className="truncate text-xs text-subtle">{p.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium tabular-nums">{formatMoney(s.amount)}</p>
-                    <p className="text-xs text-subtle">{formatDateTime(s.date)}</p>
-                  </div>
-                </div>
-              );
-            })}
-            {recent.length === 0 && (
-              <p className="px-5 py-8 text-center text-sm text-subtle">No hay ventas recientes para lo que elegiste.</p>
-            )}
-          </div>
-        </Card>
-      </div>
+      <Card className="mt-4 overflow-hidden">
+        <CardHeader title="Top 5 tiendas" description="Histórico · las tiendas con más ventas desde que se crearon" />
+        <StoreRankingTable />
+      </Card>
     </>
+  );
+}
+
+// Últimas ventas del Resumen: solo las 10 más recientes. El historial completo está en Ventas.
+const RECENT_SALES = 10;
+
+// Columnas de "Últimas ventas" que se pueden ocultar con el botón "Ocultar datos".
+const SALE_COLUMNS = [
+  { key: "cliente", label: "Cliente" },
+  { key: "tienda", label: "Tienda" },
+  { key: "total", label: "Total" },
+] as const;
+type SaleColumn = (typeof SALE_COLUMNS)[number]["key"];
+const HIDDEN_COLS_KEY = "ultimas-ventas:columnas-ocultas";
+
+
+// Últimas ventas: la tabla compartida con Ventas y el panel de detalle de la orden.
+function RecentSalesTable({ rows, hidden }: { rows: Sale[]; hidden: ReadonlySet<SaleColumn> }) {
+  // Orden abierta en el panel de detalle.
+  const [selected, setSelected] = useState<Sale | null>(null);
+  const closeDrawer = useCallback(() => setSelected(null), []);
+
+  return (
+    <div className="mt-3">
+      <SalesTable
+        rows={rows}
+        onSelect={setSelected}
+        selectedId={selected?.id}
+        hidden={hidden}
+        empty="No hay ventas recientes para lo que elegiste."
+      />
+      {selected && <OrderDrawer sale={selected} onClose={closeDrawer} hidden={hidden} />}
+    </div>
   );
 }
 
@@ -249,7 +278,7 @@ function StoreRankingTable() {
         </thead>
         <tbody className="divide-y divide-border">
           {rows.map((r, i) => (
-            <tr key={r.id} className="transition hover:bg-white/[0.02]">
+            <tr key={r.id} className="transition hover:bg-overlay/[0.02]">
               <td className="py-3 pl-5">
                 <span
                   className={`relative grid size-7 place-items-center rounded-md text-xs font-semibold tabular-nums ${
@@ -283,14 +312,8 @@ function StoreRankingTable() {
                       {r.name}
                     </Link>
                     {/* Barra de ingresos: se llena del todo en RANKING_BAR_MAX. */}
-                    <div
-                      className="mt-1.5 h-1.5 w-full max-w-48 rounded-full bg-surface-2"
-                      title={`${formatMoney(r.revenue)} de ${formatMoney(RANKING_BAR_MAX)}`}
-                    >
-                      <div
-                        className="h-full rounded-full bg-series-1"
-                        style={{ width: `${Math.min(r.revenue / RANKING_BAR_MAX, 1) * 100}%` }}
-                      />
+                    <div className="mt-2 max-w-64" title={`${formatMoney(r.revenue)} de ${formatMoney(RANKING_BAR_MAX)}`}>
+                      <MeterBar value={r.revenue / RANKING_BAR_MAX} emphasis={i === 0} />
                     </div>
                   </div>
                 </div>

@@ -17,6 +17,45 @@
   --brand-soft: #8b5cf61f;
   /* Serie de los gráficos (validada para fondo oscuro) */
   --series-1: #9085e9;
+  /* Tinte de hover y de elementos activos: blanco sobre fondo oscuro. */
+  --overlay: #ffffff;
+}
+
+/*
+ * Tema claro (blanco + violeta). Se activa con la clase "light" en <html>,
+ * desde el botón del sol del encabezado (ver theme-toggle.tsx).
+ */
+.light {
+  color-scheme: light;
+  --background: #f6f5fa;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-2: #f3f2f8;
+  --border: #e4e2ec;
+  --muted: #52525b;
+  --subtle: #71717a;
+  --brand: #7c3aed;
+  --brand-soft: #7c3aed14;
+  --series-1: #7c6fe0;
+  /* Sobre fondo claro, el tinte de hover es oscuro. */
+  --overlay: #18181b;
+
+  /*
+   * Los colores de estado y de acento que en oscuro son claros (para que se lean sobre negro)
+   * se oscurecen para que se lean sobre blanco.
+   */
+  --color-emerald-400: #059669;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-amber-300: #f59e0b;
+  --color-amber-400: #d97706;
+  --color-violet-200: #5b21b6;
+  --color-violet-300: #6d28d9;
+  --color-zinc-300: #52525b;
+  --color-zinc-400: #71717a;
+  --color-zinc-600: #d4d4d8;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-800: #a1a1aa;
 }
 
 @theme inline {
@@ -30,6 +69,7 @@
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-series-1: var(--series-1);
+  --color-overlay: var(--overlay);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -47,4 +87,8 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;
+}
+
+.light * {
+  scrollbar-color: #d4d4d8 transparent;
 }

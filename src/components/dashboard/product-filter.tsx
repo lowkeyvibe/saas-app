@@ -139,7 +139,7 @@ export function ProductFilter({
                       selected
                         ? "bg-brand text-white"
                         : i === highlight
-                          ? "bg-white/[0.06] text-foreground"
+                          ? "bg-overlay/[0.06] text-foreground"
                           : "text-muted"
                     } ${i === 0 ? "mb-1" : ""}`}
                   >

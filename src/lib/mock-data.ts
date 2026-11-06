@@ -4,6 +4,8 @@ export type ProductType = "ebook" | "curso" | "plantilla" | "pack";
 export type ProductStatus = "activo" | "borrador" | "pausado";
 export type SaleStatus = "aprobada" | "pendiente" | "rechazada" | "reembolsada";
 export type PaymentMethod = "Mercado Pago" | "Stripe" | "PayPal" | "Transferencia";
+// De dónde llegó el cliente antes de comprar.
+export type TrafficSource = "Facebook Ads" | "Instagram" | "TikTok" | "Google" | "Email" | "Directo";
 
 export type Product = {
   id: string;
@@ -29,7 +31,54 @@ export type Sale = {
   method: PaymentMethod;
   status: SaleStatus;
   date: string;
+  country: string;
+  source: TrafficSource;
+  // Datos de contacto que deja el comprador en el checkout.
+  phone: string;
+  city: string;
+  // ID del pago en la pasarela (Mercado Pago, Stripe, PayPal...).
+  paymentId: string;
+  // De qué campaña y anuncio vino (parámetros UTM). null si llegó directo.
+  attribution: Attribution | null;
+  // Por qué la pasarela rechazó el pago del producto principal. Solo en ventas rechazadas.
+  declineReason?: DeclineReason;
+  // Seguimiento del email de entrega del producto.
+  emailEvents: EmailEvent[];
+  // Upsells post-compra que aceptó después del producto principal.
+  // `amount` suma el producto principal y los upsells que no fueron rechazados.
+  upsells: SaleUpsell[];
 };
+
+// Un upsell que aceptó: qué producto y en qué número de upsell del embudo (1 a 10).
+// Puede saltear números: si rechazó la oferta 2 y aceptó la 3, queda el 1 y el 3.
+// No hay carrito: cada upsell es un cobro aparte (one-click), con su propio estado e ID de pago.
+// Por eso un upsell puede salir rechazado aunque el producto principal y otros upsells se hayan cobrado.
+export type SaleUpsell = {
+  productId: string;
+  step: number;
+  status: SaleStatus;
+  paymentId: string;
+  declineReason?: DeclineReason;
+};
+
+export const MAX_UPSELLS = 10;
+
+export type Attribution = {
+  source: string; // utm_source: facebook, instagram, tiktok, google, email
+  medium: string; // utm_medium: paid, cpc, newsletter
+  campaign: string;
+  adset?: string;
+  ad?: string;
+};
+
+export type DeclineReason = {
+  message: string; // motivo corto, en lenguaje simple
+  detail: string; // qué significa y qué puede hacer el cliente
+  code: string; // código tal cual lo devuelve la pasarela
+};
+
+export type EmailEventType = "enviado" | "entregado" | "abierto";
+export type EmailEvent = { type: EmailEventType; date: string };
 
 export type Customer = {
   id: string;
@@ -74,11 +123,188 @@ export const products: Product[] = [
 const firstNames = ["Sofía", "Mateo", "Valentina", "Benjamín", "Camila", "Lucas", "Martina", "Joaquín", "Lucía", "Tomás", "Julieta", "Santiago", "Agustina", "Facundo", "Florencia", "Nicolás"];
 const lastNames = ["González", "Rodríguez", "Fernández", "López", "Martínez", "Pérez", "Gómez", "Díaz", "Romero", "Sosa", "Álvarez", "Torres"];
 const countries = ["Argentina", "Argentina", "Argentina", "México", "Uruguay", "Chile", "Colombia", "España"];
+const sources: TrafficSource[] = ["Facebook Ads", "Facebook Ads", "Facebook Ads", "Instagram", "Instagram", "TikTok", "Google", "Email", "Directo"];
+
+// Bandera (emoji) de cada país que aparece en los datos.
+export const COUNTRY_FLAGS: Record<string, string> = {
+  Argentina: "🇦🇷",
+  México: "🇲🇽",
+  Uruguay: "🇺🇾",
+  Chile: "🇨🇱",
+  Colombia: "🇨🇴",
+  España: "🇪🇸",
+};
 const methods: PaymentMethod[] = ["Mercado Pago", "Mercado Pago", "Mercado Pago", "Stripe", "PayPal", "Transferencia"];
 const statuses: SaleStatus[] = ["aprobada", "aprobada", "aprobada", "aprobada", "aprobada", "aprobada", "pendiente", "rechazada", "reembolsada"];
 
-function buildSales(): Sale[] {
+// Ciudades y prefijo telefónico de cada país, para los datos de contacto de prueba.
+const COUNTRY_DETAILS: Record<string, { cities: string[]; phone: string }> = {
+  Argentina: { cities: ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "La Plata"], phone: "+54 9 11" },
+  México: { cities: ["Ciudad de México", "Guadalajara", "Monterrey"], phone: "+52 55" },
+  Uruguay: { cities: ["Montevideo", "Punta del Este"], phone: "+598 9" },
+  Chile: { cities: ["Santiago", "Valparaíso", "Concepción"], phone: "+56 9" },
+  Colombia: { cities: ["Bogotá", "Medellín", "Cali"], phone: "+57 3" },
+  España: { cities: ["Madrid", "Barcelona", "Valencia"], phone: "+34 6" },
+};
+
+type SaleDetails = "phone" | "city" | "paymentId" | "attribution" | "emailEvents" | "declineReason";
+
+// Motivos de rechazo de prueba, con el código que devuelve cada pasarela.
+const DECLINE_REASONS: { message: string; detail: string; codes: Record<PaymentMethod, string> }[] = [
+  {
+    message: "Fondos insuficientes",
+    detail: "La tarjeta no tenía saldo o límite suficiente. El cliente puede reintentar con otra tarjeta u otro medio de pago.",
+    codes: { "Mercado Pago": "cc_rejected_insufficient_amount", Stripe: "insufficient_funds", PayPal: "INSTRUMENT_DECLINED", Transferencia: "—" },
+  },
+  {
+    message: "Código de seguridad incorrecto",
+    detail: "El CVV que cargó el cliente no coincide con el de la tarjeta.",
+    codes: { "Mercado Pago": "cc_rejected_bad_filled_security_code", Stripe: "incorrect_cvc", PayPal: "CVV2_FAILURE", Transferencia: "—" },
+  },
+  {
+    message: "Rechazado por el banco",
+    detail: "El banco emisor no autorizó el pago y no dio más detalles. El cliente tiene que llamar a su banco o usar otra tarjeta.",
+    codes: { "Mercado Pago": "cc_rejected_call_for_authorize", Stripe: "do_not_honor", PayPal: "PAYER_CANNOT_PAY", Transferencia: "—" },
+  },
+  {
+    message: "Sospecha de fraude",
+    detail: "El sistema antifraude de la pasarela bloqueó el pago por considerarlo riesgoso.",
+    codes: { "Mercado Pago": "cc_rejected_high_risk", Stripe: "fraudulent", PayPal: "TRANSACTION_REFUSED", Transferencia: "—" },
+  },
+  {
+    message: "Tarjeta vencida",
+    detail: "La tarjeta que usó el cliente ya está vencida.",
+    codes: { "Mercado Pago": "cc_rejected_bad_filled_date", Stripe: "expired_card", PayPal: "CARD_EXPIRED", Transferencia: "—" },
+  },
+];
+
+// ID de pago con el formato de cada pasarela.
+function paymentIdFor(method: PaymentMethod, rand: () => number) {
+  const digits = (n: number) => Array.from({ length: n }, () => Math.floor(rand() * 10)).join("");
+  const alnum = (n: number) =>
+    Array.from({ length: n }, () => "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"[Math.floor(rand() * 56)]).join("");
+  if (method === "Stripe") return `pi_${alnum(24)}`;
+  if (method === "PayPal") return `PAYID-${alnum(20).toUpperCase()}`;
+  if (method === "Transferencia") return `TRF-${digits(8)}`;
+  return digits(11); // Mercado Pago usa IDs numéricos
+}
+
+// Completa cada venta con contacto, ID de pago, atribución y seguimiento del email.
+// Usa su propio generador para no cambiar el resto de los datos de prueba.
+function addDetails(sales: Omit<Sale, SaleDetails>[]): Sale[] {
+  const rand = seeded(2718);
+  // Generador aparte para los rechazos, así no cambian los demás datos.
+  const declineRand = seeded(1618);
+  const pick = <T,>(list: T[]) => list[Math.floor(rand() * list.length)];
+  const digits = (n: number) => Array.from({ length: n }, () => Math.floor(rand() * 10)).join("");
+  const alnum = (n: number) =>
+    Array.from({ length: n }, () => "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"[Math.floor(rand() * 56)]).join("");
+  // Generador aparte para los cobros de los upsells, así no cambian los demás datos.
+  const upsellRand = seeded(4242);
+  const priceOf = (id: string) => products.find((p) => p.id === id)!.price;
+
+  return sales.map((s) => {
+    const geo = COUNTRY_DETAILS[s.country];
+    const store = activeStores.find((t) => t.id === products.find((p) => p.id === s.productId)?.storeId)!;
+    const paymentId =
+      s.method === "Stripe"
+        ? `pi_${alnum(24)}`
+        : s.method === "PayPal"
+          ? `PAYID-${alnum(20).toUpperCase()}`
+          : s.method === "Transferencia"
+            ? `TRF-${digits(8)}`
+            : digits(11); // Mercado Pago usa IDs numéricos
+
+    const campaignDate = `${String(1 + Math.floor(rand() * 5)).padStart(2, "0")}/11`;
+    const adNumber = String(1 + Math.floor(rand() * 4)).padStart(2, "0");
+    const adsetNumber = String(1 + Math.floor(rand() * 3)).padStart(2, "0");
+    const paid = (source: string, medium: string, kind: string): Attribution => ({
+      source,
+      medium,
+      campaign: `${kind} - ${store.name} ${campaignDate}`,
+      adset: `CONJUNTO - ${adsetNumber}`,
+      ad: `${store.name} ${pick(["VID", "IMG", "CARRUSEL"])} - ${adNumber}`,
+    });
+    const attribution: Attribution | null =
+      s.source === "Facebook Ads"
+        ? paid("facebook", "paid", pick(["Ventas", "Remarketing"]))
+        : s.source === "Instagram"
+          ? paid("instagram", "paid", pick(["Ventas", "Remarketing"]))
+          : s.source === "TikTok"
+            ? paid("tiktok", "paid", "Ventas TikTok")
+            : s.source === "Google"
+              ? { source: "google", medium: "cpc", campaign: `Búsqueda - ${store.name}` }
+              : s.source === "Email"
+                ? { source: "email", medium: "newsletter", campaign: "Newsletter noviembre" }
+                : null;
+
+    // El email de entrega solo sale cuando el pago se aprueba.
+    const emailEvents: EmailEvent[] = [];
+    if (s.status === "aprobada" || s.status === "reembolsada") {
+      const t = Date.parse(s.date);
+      const at = (minutes: number) => new Date(t + minutes * 60_000).toISOString();
+      emailEvents.push({ type: "enviado", date: at(0) }, { type: "entregado", date: at(1) });
+      if (rand() < 0.65) emailEvents.push({ type: "abierto", date: at(3 + Math.floor(rand() * 40)) });
+    }
+
+    // Las transferencias no se rechazan en una pasarela: si no llegan, el vendedor la cancela.
+    let declineReason: DeclineReason | undefined;
+    if (s.status === "rechazada") {
+      const r = DECLINE_REASONS[Math.floor(declineRand() * DECLINE_REASONS.length)];
+      declineReason =
+        s.method === "Transferencia"
+          ? {
+              message: "No se recibió la transferencia",
+              detail: "Pasó el plazo para transferir y el pago no se acreditó, así que la orden se canceló.",
+              code: "transferencia_vencida",
+            }
+          : { message: r.message, detail: r.detail, code: r.codes[s.method] };
+    }
+
+    // Upsells: solo se ofrecen si el producto principal se cobró, y no con transferencia
+    // (el one-click necesita cobrarle de nuevo a la misma tarjeta o cuenta).
+    const offered = (s.status === "aprobada" || s.status === "reembolsada") && s.method !== "Transferencia";
+    const upsells: SaleUpsell[] = offered
+      ? s.upsells.map((u) => {
+          // Si se reembolsó la venta, se devolvieron también los upsells. Si no, ~1 de cada 6 se rechaza.
+          const status: SaleStatus =
+            s.status === "reembolsada" ? "reembolsada" : upsellRand() < 0.17 ? "rechazada" : "aprobada";
+          const r = DECLINE_REASONS[Math.floor(upsellRand() * DECLINE_REASONS.length)];
+          return {
+            ...u,
+            status,
+            paymentId: paymentIdFor(s.method, upsellRand),
+            declineReason:
+              status === "rechazada" ? { message: r.message, detail: r.detail, code: r.codes[s.method] } : undefined,
+          };
+        })
+      : [];
+    const amount =
+      Math.round(
+        (priceOf(s.productId) + upsells.filter((u) => u.status !== "rechazada").reduce((a, u) => a + priceOf(u.productId), 0)) * 100,
+      ) / 100;
+
+    return {
+      ...s,
+      upsells,
+      amount,
+      declineReason,
+      phone: `${geo.phone} ${digits(4)}-${digits(4)}`,
+      city: pick(geo.cities),
+      paymentId,
+      attribution,
+      emailEvents,
+    };
+  });
+}
+
+function buildSales(): Omit<Sale, SaleDetails>[] {
   const rand = seeded(42);
+  // Generador aparte para los upsells, así no cambian los clientes, productos y fechas de siempre.
+  const upsellRand = seeded(314);
+  // Y otro para país y origen. El país es por cliente: si vuelve a comprar, es el mismo.
+  const geoRand = seeded(7);
+  const countryByCustomer = new Map<string, string>();
   const active = products.filter((p) => p.status !== "borrador");
   const base = new Date(`${TODAY}T23:00:00Z`).getTime();
   return Array.from({ length: 40 }, (_, i) => {
@@ -86,12 +312,44 @@ function buildSales(): Sale[] {
     const last = lastNames[Math.floor(rand() * lastNames.length)];
     const product = active[Math.floor(rand() * active.length)];
     const minutesAgo = i * 95 + Math.floor(rand() * 80);
+    // ~4 de cada 10 ventas se llevan al menos un upsell; algunas, dos o tres.
+    const r = upsellRand();
+    const upsellCount = r < 0.05 ? 3 : r < 0.15 ? 2 : r < 0.4 ? 1 : 0;
+    const candidates = active.filter((p) => p.id !== product.id);
+    const picked: string[] = [];
+    while (picked.length < upsellCount) {
+      const pick = candidates[Math.floor(upsellRand() * candidates.length)];
+      if (!picked.includes(pick.id)) picked.push(pick.id);
+    }
+    // Número de upsell en el embudo: los primeros se aceptan más que los últimos.
+    const steps: number[] = [];
+    while (steps.length < upsellCount) {
+      const step = 1 + Math.floor(upsellRand() ** 2 * MAX_UPSELLS);
+      if (!steps.includes(step)) steps.push(step);
+    }
+    steps.sort((x, y) => x - y);
+    // El estado y el ID de pago de cada upsell se completan en addDetails().
+    const upsells: SaleUpsell[] = picked.map((productId, k) => ({
+      productId,
+      step: steps[k],
+      status: "aprobada",
+      paymentId: "",
+    }));
+    const name = `${first} ${last}`;
+    if (!countryByCustomer.has(name)) {
+      countryByCustomer.set(name, countries[Math.floor(geoRand() * countries.length)]);
+    }
+    const source = sources[Math.floor(geoRand() * sources.length)];
+    const upsellTotal = upsells.reduce((a, u) => a + products.find((p) => p.id === u.productId)!.price, 0);
     return {
       id: `#${(10482 - i).toString()}`,
-      customer: `${first} ${last}`,
+      customer: name,
       email: `${first}.${last}`.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") + "@gmail.com",
       productId: product.id,
-      amount: product.price,
+      amount: Math.round((product.price + upsellTotal) * 100) / 100,
+      upsells,
+      country: countryByCustomer.get(name)!,
+      source,
       method: methods[Math.floor(rand() * methods.length)],
       status: statuses[Math.floor(rand() * statuses.length)],
       date: new Date(base - minutesAgo * 60_000).toISOString(),
@@ -99,10 +357,9 @@ function buildSales(): Sale[] {
   });
 }
 
-export const sales = buildSales();
+export const sales = addDetails(buildSales());
 
 export const customers: Customer[] = (() => {
-  const rand = seeded(7);
   const seen = new Map<string, Customer>();
   for (const s of sales) {
     const c = seen.get(s.email);
@@ -114,7 +371,7 @@ export const customers: Customer[] = (() => {
         id: `c${seen.size + 1}`,
         name: s.customer,
         email: s.email,
-        country: countries[Math.floor(rand() * countries.length)],
+        country: s.country,
         purchases: 1,
         spent: s.amount,
         lastPurchase: s.date,
@@ -191,6 +448,35 @@ export function productById(id: string) {
   return products.find((p) => p.id === id);
 }
 
+// Un artículo de la venta con su propio cobro: el producto principal (step null) o un upsell.
+export type SaleItem = {
+  product: Product;
+  step: number | null;
+  status: SaleStatus;
+  paymentId: string;
+  declineReason?: DeclineReason;
+};
+
+// Lo que se llevó en una venta: el producto principal y después cada upsell, cada uno con su pago.
+export function saleItems(sale: Sale): SaleItem[] {
+  return [
+    {
+      product: productById(sale.productId)!,
+      step: null,
+      status: sale.status,
+      paymentId: sale.paymentId,
+      declineReason: sale.declineReason,
+    },
+    ...sale.upsells.map((u) => ({
+      product: productById(u.productId)!,
+      step: u.step,
+      status: u.status,
+      paymentId: u.paymentId,
+      declineReason: u.declineReason,
+    })),
+  ];
+}
+
 // Ingresos diarios de un producto en los últimos 30 días.
 export function productRevenueSeries(id: string): DailyRevenue[] {
   return productDaily[id]?.slice(-30) ?? revenueLast30.map((d) => ({ ...d, revenue: 0, orders: 0 }));
@@ -256,3 +542,81 @@ export const inactiveStoreDaily: Record<string, DailyRevenue[]> = Object.fromEnt
     return [store.id, series];
   }),
 );
+
+// Notificaciones del menú de la bandeja (arriba a la derecha), armadas a partir de las últimas ventas.
+// Las más recientes llegan sin leer.
+export type NotificationKind = "venta" | "rechazo" | "upsell-rechazado" | "reembolso" | "retiro";
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  detail: string;
+  date: string;
+  href: string;
+  unread: boolean;
+};
+
+export const notifications: AppNotification[] = (() => {
+  const list: AppNotification[] = [];
+  for (const s of sales.slice(0, 10)) {
+    const product = productById(s.productId)!;
+    if (s.status === "rechazada") {
+      list.push({
+        id: `${s.id}-rechazo`,
+        kind: "rechazo",
+        title: `Pago rechazado · ${s.id}`,
+        detail: `${s.customer} · ${s.declineReason?.message ?? product.name}`,
+        date: s.date,
+        href: "/dashboard/ventas",
+        unread: false,
+      });
+      continue;
+    }
+    if (s.status === "reembolsada") {
+      list.push({
+        id: `${s.id}-reembolso`,
+        kind: "reembolso",
+        title: `Reembolso · ${s.id}`,
+        detail: `Le devolviste ${s.amount.toFixed(2)} USD a ${s.customer}`,
+        date: s.date,
+        href: "/dashboard/ventas",
+        unread: false,
+      });
+      continue;
+    }
+    if (s.status !== "aprobada") continue;
+    const items = s.upsells.filter((u) => u.status === "aprobada").length + 1;
+    list.push({
+      id: `${s.id}-venta`,
+      kind: "venta",
+      title: `Nueva venta · ${s.amount.toFixed(2)} USD`,
+      detail: `${s.customer} compró ${product.name}${items > 1 ? ` y ${items - 1} upsell${items > 2 ? "s" : ""}` : ""}`,
+      date: s.date,
+      href: "/dashboard/ventas",
+      unread: false,
+    });
+    for (const u of s.upsells.filter((u) => u.status === "rechazada")) {
+      list.push({
+        id: `${s.id}-upsell-${u.step}`,
+        kind: "upsell-rechazado",
+        title: `Upsell ${u.step} rechazado · ${s.id}`,
+        detail: `${s.customer} · ${u.declineReason?.message ?? productById(u.productId)!.name}`,
+        date: s.date,
+        href: "/dashboard/ventas",
+        unread: false,
+      });
+    }
+  }
+  list.push({
+    id: "retiro-1",
+    kind: "retiro",
+    title: "Retiro acreditado · 520.00 USD",
+    detail: "Ya está en tu cuenta bancaria",
+    date: `${TODAY}T09:00:00.000Z`,
+    href: "/dashboard",
+    unread: false,
+  });
+  list.sort((a, b) => b.date.localeCompare(a.date));
+  list.slice(0, 3).forEach((n) => (n.unread = true));
+  return list;
+})();
