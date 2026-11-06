@@ -111,3 +111,34 @@ export function HideColumnsMenu<K extends string>({
     </div>
   );
 }
+
+// ═══ Columnas de las tablas de ventas ═══════════════════════════════════════
+// Las mismas en "Últimas ventas" (Resumen) e "Historial" (Ventas). Lo que se oculta en una
+// se oculta en la otra, y se recuerda en este navegador.
+export const SALE_COLUMNS = [
+  { key: "cliente", label: "Cliente" },
+  { key: "articulos", label: "Artículos" },
+  { key: "tienda", label: "Tienda" },
+  { key: "total", label: "Total" },
+] as const;
+export type SaleColumn = (typeof SALE_COLUMNS)[number]["key"];
+const HIDDEN_SALE_COLS_KEY = "ultimas-ventas:columnas-ocultas";
+
+export function useHiddenSaleColumns() {
+  const [hidden, setHidden] = useState<Set<SaleColumn>>(new Set());
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HIDDEN_SALE_COLS_KEY) ?? "[]") as SaleColumn[];
+      const valid = saved.filter((k) => SALE_COLUMNS.some((c) => c.key === k));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- se lee del navegador después de montar
+      if (valid.length) setHidden(new Set(valid));
+    } catch {
+      // Si lo guardado está roto, se arranca sin columnas ocultas.
+    }
+  }, []);
+  const update = (next: Set<SaleColumn>) => {
+    setHidden(next);
+    localStorage.setItem(HIDDEN_SALE_COLS_KEY, JSON.stringify([...next]));
+  };
+  return [hidden, update] as const;
+}

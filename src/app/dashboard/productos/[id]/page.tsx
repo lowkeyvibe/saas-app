@@ -57,7 +57,7 @@ export default async function ProductoPage({ params }: PageProps<"/dashboard/pro
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <div className="scale-125">
-            <ProductThumb color={product.color} name={product.name} />
+            <ProductThumb name={product.name} />
           </div>
           <div className="ml-1">
             <div className="flex flex-wrap items-center gap-2">

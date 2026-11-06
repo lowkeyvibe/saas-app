@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, LayoutGrid } from "lucide-react";
 import type { ProductEarnings } from "@/lib/analytics";
 import { formatMoney } from "@/lib/format";
+import { ProductThumb } from "./ui";
 
 // Menú desplegable para ver la vista general de un producto (o de todos), con su ganancia en el período.
 export function ProductFilter({
@@ -18,8 +19,9 @@ export function ProductFilter({
   value: string | null;
   total: number;
   onChange: (productId: string | null) => void;
-  includeInactive: boolean;
-  onIncludeInactiveChange: (include: boolean) => void;
+  // Opcional: sin `onIncludeInactiveChange` no se muestra el interruptor de tiendas inactivas.
+  includeInactive?: boolean;
+  onIncludeInactiveChange?: (include: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -90,7 +92,7 @@ export function ProductFilter({
             : "border-border bg-background hover:border-zinc-600"
         } ${open ? "ring-4 ring-violet-500/20" : ""}`}
       >
-        <Swatch color={current.color} />
+        <Swatch color={current.color} name={current.label} inactive={current.inactive} />
         <span className="truncate">{current.label}</span>
         <ChevronDown
           className={`size-4 shrink-0 transition ${value ? "text-white/80" : "text-subtle"} ${open ? "rotate-180" : ""}`}
@@ -99,6 +101,7 @@ export function ProductFilter({
 
       {open && (
         <div className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-surface-2 shadow-2xl shadow-black/50">
+          {onIncludeInactiveChange && (
           <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
             <span id="inactive-switch-label" className="text-sm">
               Contar tiendas inactivas
@@ -120,6 +123,7 @@ export function ProductFilter({
               />
             </button>
           </div>
+          )}
           <ul role="listbox" className="max-h-80 overflow-y-auto p-1">
             {items.map((item, i) => {
               const selected = item.id === current.id;
@@ -143,7 +147,7 @@ export function ProductFilter({
                           : "text-muted"
                     } ${i === 0 ? "mb-1" : ""}`}
                   >
-                    <Swatch color={item.color} />
+                    <Swatch color={item.color} name={item.label} inactive={item.inactive} />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     <span className={`shrink-0 text-xs tabular-nums ${selected ? "text-white/80" : "text-subtle"}`}>
                       {formatMoney(item.revenue)}
@@ -160,7 +164,9 @@ export function ProductFilter({
   );
 }
 
-function Swatch({ color }: { color?: string }) {
+// "Todos" lleva el ícono de grilla; cada producto, su imagen; las tiendas inactivas, su color.
+function Swatch({ color, name, inactive }: { color?: string; name: string; inactive?: boolean }) {
   if (!color) return <LayoutGrid className="size-4 shrink-0 opacity-70" />;
-  return <span className={`size-4 shrink-0 rounded bg-gradient-to-br ${color}`} />;
+  if (inactive) return <span className={`size-4 shrink-0 rounded bg-gradient-to-br ${color}`} />;
+  return <ProductThumb name={name} size="xs" />;
 }

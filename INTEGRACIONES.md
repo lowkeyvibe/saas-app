@@ -155,11 +155,13 @@ No dependen de nadie más, pero hoy son datos de prueba. Hay que armar la base d
 
 - **Hoy:** `activeStores` e `inactiveStores` en [mock-data.ts](src/lib/mock-data.ts), con sus ventas históricas inventadas. Los botones de [Tiendas inactivas](src/app/dashboard/tiendas-inactivas/page.tsx) (reactivar y eliminar) no hacen nada.
 - **Falta:** tabla de tiendas (nombre, subdominio, estado, motivo de baja, fechas) y las acciones de pausar, reactivar y eliminar.
+- **Imagen de la tienda:** en [Ventas](src/components/ventas/sales-history.tsx), la card "Por tienda" tiene un lugar para la foto de cada tienda, hoy vacío (`StoreImage`). Falta poder subirla (mismo almacenamiento que los archivos de productos, ver 2.3) y guardar su URL en la tabla de tiendas.
 
 ### 2.3 Productos y upsells ⬜
 
 - **Hoy:** `products` en [mock-data.ts](src/lib/mock-data.ts). Botones de crear, editar, publicar y copiar link sin función.
 - **Falta:** tabla de productos, tabla de upsells (qué producto se ofrece después de comprar cuál, y a qué precio) y subida de archivos entregables (necesita almacenamiento: S3, Cloudflare R2, Supabase Storage o similar).
+- **Imagen del producto:** todas las imágenes de producto de la app salen de un solo componente, `ProductThumb` ([ui.tsx](src/components/dashboard/ui.tsx)), que hoy muestra el lugar vacío. Falta subirla (mismo almacenamiento que los entregables), guardar su URL en la tabla de productos y pasarla como `src`.
 
 ### 2.4 Ventas / órdenes ⬜
 

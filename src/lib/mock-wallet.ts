@@ -14,18 +14,18 @@ export type MainCurrency = "USD" | "EUR";
 export type CurrencyInfo = {
   code: string;
   name: string;
-  flag: string;
+  country: string; // código ISO del país de la bandera ("EU" para el euro), ver RoundFlag
   rateToUSD: number; // cuántos USD vale 1 unidad (tasa de referencia de prueba)
   decimals: number;
 };
 
 export const CURRENCIES: Record<string, CurrencyInfo> = {
-  USD: { code: "USD", name: "Dólar estadounidense", flag: "🇺🇸", rateToUSD: 1, decimals: 2 },
-  EUR: { code: "EUR", name: "Euro", flag: "🇪🇺", rateToUSD: 1.08, decimals: 2 },
-  ARS: { code: "ARS", name: "Peso argentino", flag: "🇦🇷", rateToUSD: 0.001, decimals: 0 },
-  MXN: { code: "MXN", name: "Peso mexicano", flag: "🇲🇽", rateToUSD: 0.055, decimals: 2 },
-  COP: { code: "COP", name: "Peso colombiano", flag: "🇨🇴", rateToUSD: 0.00025, decimals: 0 },
-  CLP: { code: "CLP", name: "Peso chileno", flag: "🇨🇱", rateToUSD: 0.00105, decimals: 0 },
+  USD: { code: "USD", name: "Dólar estadounidense", country: "US", rateToUSD: 1, decimals: 2 },
+  EUR: { code: "EUR", name: "Euro", country: "EU", rateToUSD: 1.08, decimals: 2 },
+  ARS: { code: "ARS", name: "Peso argentino", country: "AR", rateToUSD: 0.001, decimals: 0 },
+  MXN: { code: "MXN", name: "Peso mexicano", country: "MX", rateToUSD: 0.055, decimals: 2 },
+  COP: { code: "COP", name: "Peso colombiano", country: "CO", rateToUSD: 0.00025, decimals: 0 },
+  CLP: { code: "CLP", name: "Peso chileno", country: "CL", rateToUSD: 0.00105, decimals: 0 },
 };
 
 // Saldo de cada moneda: lo disponible y lo que está por acreditarse (a liquidar).

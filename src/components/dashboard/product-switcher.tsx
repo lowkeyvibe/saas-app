@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
 import { products, type Product } from "@/lib/mock-data";
+import { ProductThumb } from "./ui";
 
 const statusDot = {
   activo: "bg-emerald-400",
@@ -14,14 +15,8 @@ const statusDot = {
 
 const statusLabel = { activo: "Activo", pausado: "Pausado", borrador: "Borrador" };
 
-function Thumb({ p, size = "size-7" }: { p: Product; size?: string }) {
-  return (
-    <span
-      className={`grid ${size} shrink-0 place-items-center rounded-md bg-gradient-to-br ${p.color} text-[11px] font-bold text-white/90`}
-    >
-      {p.name[0]}
-    </span>
-  );
+function Thumb({ p, size = "sm" }: { p: Product; size?: "sm" | "md" }) {
+  return <ProductThumb name={p.name} size={size} />;
 }
 
 // Botón que despliega la lista de productos para elegir cuál ver.
@@ -94,7 +89,7 @@ export function ProductSwitcher({
       >
         {selected ? (
           <>
-            <Thumb p={selected} size="size-9" />
+            <Thumb p={selected} size="md" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{selected.name}</span>
               <span className="flex items-center gap-1.5 text-xs text-subtle">

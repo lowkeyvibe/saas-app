@@ -5,6 +5,7 @@ import {
   DollarSign,
   Download,
   Globe2,
+  ImageIcon,
   Receipt,
   Repeat,
   ShoppingBag,
@@ -15,11 +16,14 @@ import {
 import { Card, CardHeader, MeterBar, StatCard } from "@/components/dashboard/ui";
 import { OrderDrawer } from "@/components/dashboard/order-drawer";
 import { SalesTable } from "@/components/dashboard/sales-table";
+import { HideColumnsMenu, SALE_COLUMNS, useHiddenSaleColumns } from "@/components/dashboard/hide-columns-menu";
 import { SourceIcon } from "@/components/dashboard/brand-icons";
+import { CountryFlag } from "@/components/dashboard/country-flag";
 import { QuickRanges } from "@/components/dashboard/quick-ranges";
+import { ProductFilter } from "@/components/dashboard/product-filter";
 import { DateRangePicker, presetLabel, type RangeSelection } from "@/components/dashboard/date-range-picker";
-import { presetRange } from "@/lib/analytics";
-import { activeStores, COUNTRY_FLAGS, productById, sales, TODAY, type Sale } from "@/lib/mock-data";
+import { presetRange, type ProductEarnings } from "@/lib/analytics";
+import { activeStores, productById, products, sales, TODAY, type Sale } from "@/lib/mock-data";
 import { formatMoney, formatNumber, formatRange } from "@/lib/format";
 
 // Solo ventas aprobadas: este es el historial de lo que se vendió de verdad, en todas las tiendas.
@@ -38,21 +42,61 @@ const approvedUpsells = (s: Sale) => s.upsells.filter((u) => u.status === "aprob
 export function SalesHistory() {
   const [selected, setSelected] = useState<Sale | null>(null);
   const closeDrawer = useCallback(() => setSelected(null), []);
+  // "Ocultar datos": las mismas columnas (y lo mismo guardado) que en Últimas ventas del Resumen.
+  const [hiddenCols, updateHiddenCols] = useHiddenSaleColumns();
+
+  // Período: mismos atajos y calendario que el Resumen. Al entrar se ve el día de hoy.
+  const [range, setRange] = useState<RangeSelection>({ ...presetRange("hoy"), preset: "hoy" });
 
   // Si llegás con #historial (desde "Ver todas" del Resumen), baja directo a la tabla, en "Histórico".
   useEffect(() => {
     if (window.location.hash !== "#historial") return;
+    // "Ver todas" muestra todo el historial, no solo lo de hoy.
+    const show = setTimeout(() => setRange({ ...presetRange("maximo"), preset: "maximo" }), 0);
     const t = setTimeout(() => document.getElementById("historial")?.closest(".scroll-mt-24")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(t);
+    };
   }, []);
 
-  // Período: mismos atajos y calendario que el Resumen. Arranca en "Histórico" porque es el historial general.
-  const [range, setRange] = useState<RangeSelection>({ ...presetRange("maximo"), preset: "maximo" });
+  // Producto elegido (null = todos).
+  const [productId, setProductId] = useState<string | null>(null);
+  const product = productId ? productById(productId) : undefined;
 
-  // Ventas del período elegido.
-  const rows = useMemo(
+  // Ventas del período elegido (de todos los productos).
+  const periodRows = useMemo(
     () => approved.filter((s) => s.date.slice(0, 10) >= range.from && s.date.slice(0, 10) <= range.to),
     [range],
+  );
+
+  // Opciones del menú de productos, con lo que facturó cada uno en el período.
+  const productOptions = useMemo<ProductEarnings[]>(() => {
+    const total = periodRows.reduce((a, s) => a + s.amount, 0);
+    return products
+      .map((p) => {
+        const own = periodRows.filter((s) => s.productId === p.id);
+        const revenue = own.reduce((a, s) => a + s.amount, 0);
+        return {
+          id: p.id,
+          name: p.name,
+          color: p.color,
+          kind: "producto" as const,
+          status: p.status,
+          href: `/dashboard/productos/${p.id}`,
+          revenue,
+          orders: own.length,
+          share: total ? revenue / total : 0,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [periodRows]);
+  const periodRevenue = useMemo(() => periodRows.reduce((a, s) => a + s.amount, 0), [periodRows]);
+
+  // Ventas del período y del producto elegido: de acá sale todo lo demás de la página.
+  const rows = useMemo(
+    () => (productId ? periodRows.filter((s) => s.productId === productId) : periodRows),
+    [periodRows, productId],
   );
 
   // Números del período y de los filtros elegidos.
@@ -117,7 +161,7 @@ export function SalesHistory() {
     const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ventas-${TODAY}.csv`;
+    a.download = product ? `ventas-${product.id}-${TODAY}.csv` : `ventas-${TODAY}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -127,7 +171,11 @@ export function SalesHistory() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Ventas</h1>
-          <p className="mt-1 text-sm text-muted">Historial de todas las ventas aprobadas, de todas tus tiendas.</p>
+          <p className="mt-1 text-sm text-muted">
+            {product
+              ? `Historial de las ventas aprobadas de ${product.name}.`
+              : "Historial de todas las ventas aprobadas, de todas tus tiendas."}
+          </p>
         </div>
         <button
           type="button"
@@ -139,8 +187,9 @@ export function SalesHistory() {
         </button>
       </div>
 
-      {/* Período: igual que en el Resumen. */}
+      {/* Producto y período: igual que en el Resumen. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <ProductFilter options={productOptions} value={productId} total={periodRevenue} onChange={setProductId} />
         <QuickRanges value={range} onChange={setRange} />
         <div className="ml-auto">
           <DateRangePicker value={range} onApply={setRange} />
@@ -161,31 +210,46 @@ export function SalesHistory() {
 
       {/* Desgloses */}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Breakdown title="Por tienda" items={breakdown.stores} total={kpis.revenue} />
-        <Breakdown title="Por país" items={breakdown.countries} total={kpis.revenue} prefix={(l) => COUNTRY_FLAGS[l] ?? "🌎"} />
+        <Breakdown title="Por tienda" items={breakdown.stores} total={kpis.revenue} icon={() => <StoreImage />} />
+        <Breakdown title="Por país" items={breakdown.countries} total={kpis.revenue} icon={(l) => <CountryFlag country={l} />} />
         <Breakdown title="Por canal" items={breakdown.sources} total={kpis.revenue} icon={(l) => <SourceIcon name={l} />} />
         <Breakdown title="Por medio de pago" items={breakdown.methods} total={kpis.revenue} icon={(l) => <SourceIcon name={l} />} />
       </div>
 
       {/* Historial */}
       {/* id="historial": a este lugar lleva "Ver todas" de Últimas ventas del Resumen. */}
-      <Card className="mt-4 scroll-mt-24 overflow-hidden">
+      {/* Sin overflow-hidden para que el menú de "Ocultar datos" no quede recortado. */}
+      <Card className="mt-4 scroll-mt-24">
         <span id="historial" />
-        <CardHeader
-          title="Historial"
-          description={`${formatNumber(rows.length)} ${rows.length === 1 ? "venta" : "ventas"} · ${
-            range.preset === "custom" ? formatRange(range.from, range.to) : presetLabel(range.preset)
-          } · tocá una para ver el detalle`}
-        />
+        <div className="flex items-start gap-3 px-5 pt-5">
+          <div>
+            <h2 className="text-sm font-medium">Historial</h2>
+            <p className="mt-0.5 text-xs text-subtle">
+              {`${formatNumber(rows.length)} ${rows.length === 1 ? "venta" : "ventas"}${product ? ` de ${product.name}` : ""} · ${
+                range.preset === "custom" ? formatRange(range.from, range.to) : presetLabel(range.preset)
+              } · tocá una para ver el detalle`}
+            </p>
+          </div>
+          <HideColumnsMenu columns={SALE_COLUMNS} hidden={hiddenCols} onChange={updateHiddenCols} />
+        </div>
         {/* Todas las ventas, sin paginar. Misma tabla que "Últimas ventas" del Resumen. */}
         {/* Alto fijo con desplazamiento propio: cambiar el período no cambia el largo de la página. */}
-        <div className="mt-3 h-[36rem] overflow-y-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-surface">
-          <SalesTable rows={rows} onSelect={setSelected} selectedId={selected?.id} empty="No hay ventas en este período." />
+        <div className="mt-3 h-[36rem] overflow-y-auto rounded-b-xl [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-surface">
+          <SalesTable rows={rows} onSelect={setSelected} selectedId={selected?.id} hidden={hiddenCols} empty={product ? "Este producto no tiene ventas en este período." : "No hay ventas en este período."} />
         </div>
       </Card>
 
-      {selected && <OrderDrawer sale={selected} onClose={closeDrawer} />}
+      {selected && <OrderDrawer sale={selected} onClose={closeDrawer} hidden={hiddenCols} />}
     </>
+  );
+}
+
+// Lugar para la foto de la tienda. Por ahora vacío: todavía no hay forma de cargarla (ver INTEGRACIONES.md).
+function StoreImage() {
+  return (
+    <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border bg-overlay/[0.03]">
+      <ImageIcon className="size-3.5 text-subtle/60" aria-hidden />
+    </span>
   );
 }
 
@@ -193,13 +257,11 @@ function Breakdown({
   title,
   items,
   total,
-  prefix,
   icon,
 }: {
   title: string;
   items: { label: string; orders: number; revenue: number }[];
   total: number;
-  prefix?: (label: string) => string;
   icon?: (label: string) => React.ReactNode;
 }) {
   return (
@@ -214,7 +276,6 @@ function Breakdown({
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="flex min-w-0 items-center gap-2.5 truncate">
                   {icon?.(i.label)}
-                  {prefix && <span>{prefix(i.label)}</span>}
                   <span className="truncate">{i.label}</span>
                   <span className="text-xs text-subtle">
                     {i.orders} {i.orders === 1 ? "venta" : "ventas"}

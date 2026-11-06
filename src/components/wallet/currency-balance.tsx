@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowRight, ArrowRightLeft, Check, CircleAlert, Loader2, X } from "lucide-react";
+import { RoundFlag } from "@/components/dashboard/country-flag";
 import { primaryButton } from "@/components/settings/settings-ui";
 import { playSuccess } from "@/lib/sounds";
 import { formatCurrency } from "@/lib/format";
@@ -10,11 +11,7 @@ import { convert, CURRENCIES, type CurrencyBalance, type MainCurrency } from "@/
 export const fmt = (value: number, code: string) => formatCurrency(value, code, CURRENCIES[code].decimals);
 
 export function Flag({ code, size = "size-8" }: { code: string; size?: string }) {
-  return (
-    <span className={`grid ${size} shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 text-base leading-none`}>
-      {CURRENCIES[code].flag}
-    </span>
-  );
+  return <RoundFlag code={CURRENCIES[code].country} label={CURRENCIES[code].name} className={size} />;
 }
 
 // Ventana en el centro de la pantalla para pasar un saldo de otra moneda a la moneda principal.

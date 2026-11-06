@@ -40,7 +40,7 @@ export default function ProductosPage() {
                 <tr key={p.id} className="transition hover:bg-overlay/[0.02]">
                   <td className="px-5 py-3">
                     <Link href={`/dashboard/productos/${p.id}`} className="group flex items-center gap-3">
-                      <ProductThumb color={p.color} name={p.name} />
+                      <ProductThumb name={p.name} />
                       <div>
                         <p className="font-medium group-hover:text-violet-300">{p.name}</p>
                         <p className="text-xs text-subtle">{typeLabel[p.type]}</p>

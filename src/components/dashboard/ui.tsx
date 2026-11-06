@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ImageIcon, type LucideIcon } from "lucide-react";
 import type { SaleStatus, ProductStatus } from "@/lib/mock-data";
 
 export function PageHeader({
@@ -186,15 +186,29 @@ export function StatusBadge({ status }: { status: SaleStatus | ProductStatus }) 
   );
 }
 
-// Imagen del producto (por ahora, su inicial sobre un degradé). `size="lg"` para listas destacadas.
-export function ProductThumb({ color, name, size = "md" }: { color: string; name: string; size?: "md" | "lg" }) {
+// Imagen del producto. Es la ÚNICA que se usa en toda la app (Resumen, Productos, Ventas, menús):
+// cuando haya fotos, se cambia acá y se ve en todos lados. Hoy no hay forma de cargarlas, así que
+// sin `src` muestra el lugar vacío. Tamaños: xs (filtros), sm (menús), md (listas), lg (destacados).
+const THUMB_SIZES = {
+  xs: { box: "size-4 rounded", icon: "" },
+  sm: { box: "size-7 rounded-md", icon: "size-3" },
+  md: { box: "size-9 rounded-lg", icon: "size-3.5" },
+  lg: { box: "size-14 rounded-xl", icon: "size-5" },
+};
+
+export function ProductThumb({ name, src, size = "md" }: { name: string; src?: string; size?: keyof typeof THUMB_SIZES }) {
+  const s = THUMB_SIZES[size];
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element -- todavía no sabemos de dónde van a salir las fotos
+    return <img src={src} alt={name} className={`${s.box} shrink-0 object-cover`} />;
+  }
   return (
     <span
-      className={`grid shrink-0 place-items-center bg-gradient-to-br ${color} font-bold text-white/90 ${
-        size === "lg" ? "size-14 rounded-xl text-lg" : "size-9 rounded-lg text-xs"
-      }`}
+      role="img"
+      aria-label={`Imagen de ${name}`}
+      className={`grid shrink-0 place-items-center border border-dashed border-border bg-overlay/[0.03] ${s.box}`}
     >
-      {name[0]}
+      {s.icon && <ImageIcon aria-hidden className={`${s.icon} text-subtle/60`} />}
     </span>
   );
 }

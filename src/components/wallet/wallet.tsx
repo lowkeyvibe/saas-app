@@ -10,7 +10,8 @@ import {
   Landmark,
   ShieldCheck,
 } from "lucide-react";
-import { CurrencyList, WalletPanel } from "./wallet-hero";
+import { Card } from "@/components/dashboard/ui";
+import { CurrencyConverter, IncomeCalendar, WalletPanel } from "./wallet-hero";
 import { WithdrawalsHistory } from "./withdrawals-history";
 import { AccountsSheet, METHOD_ICON, type AccountsView } from "./accounts";
 import { Sheet, primaryButton, secondaryButton } from "@/components/settings/settings-ui";
@@ -70,51 +71,61 @@ export function Wallet() {
         </button>
       </div>
 
-      {/* Panel: tu dinero (izquierda) y cuándo te entra, día por día (derecha). */}
-      <WalletPanel
-        main={main}
-        onChangeMain={setMain}
-        available={available}
-        pending={balances.reduce((a, b) => a + convert(b.pending, b.code, main), 0)}
-        inTransit={inTransit}
-        withdrawn={withdrawnThisMonth}
-        accounts={accounts}
-        accountId={accountId}
-        onSelectAccount={setAccountId}
-        onAddAccount={() => setAccountsView("agregar")}
-        onWithdraw={() => account && setWithdrawing(true)}
-      />
+      {/* La Wallet en tres filas, de lo más importante a lo de consulta:
+          1. Tu dinero: lo que podés retirar | cuándo te entra (dos cards cuadradas, mitad y mitad, mismo alto).
+          2. Monedas: el conversor, a todo el ancho (es una lista: se lee mejor ancha).
+          3. Retiros: el historial con sus filtros, a todo el ancho. */}
+      <SectionTitle>Tu dinero</SectionTitle>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <WalletPanel
+          main={main}
+          onChangeMain={setMain}
+          available={available}
+          pending={balances.reduce((a, b) => a + convert(b.pending, b.code, main), 0)}
+          inTransit={inTransit}
+          withdrawn={withdrawnThisMonth}
+          accounts={accounts}
+          accountId={accountId}
+          onSelectAccount={setAccountId}
+          onAddAccount={() => setAccountsView("agregar")}
+          onWithdraw={() => account && setWithdrawing(true)}
+        />
+        <IncomeCalendar main={main} />
+      </div>
 
-      {/* Tus otras monedas */}
-      <CurrencyList
-        main={main}
-        balances={balances}
-        history={conversionHistory}
-        onConvert={(code, amount) => {
-          // Suma la conversión al historial (arriba de todo).
-          setConversionHistory((h) => [
-            {
-              id: `CV-${3109 + h.length}`,
-              date: new Date().toISOString(),
-              from: code,
-              amount,
-              to: main,
-              received: Math.round(convert(amount, code, main) * 100) / 100,
-            },
-            ...h,
-          ]);
-          setBalances((list) =>
-            list.map((b) =>
-              b.code === code
-                ? { ...b, available: Math.round((b.available - amount) * 100) / 100 }
-                : b.code === main
-                  ? { ...b, available: Math.round((b.available + convert(amount, code, main)) * 100) / 100 }
-                  : b,
-            ),
-          );
-        }}
-      />
+      <SectionTitle className="mt-10">Monedas</SectionTitle>
+      <Card className="flex h-[39rem] min-w-0 flex-col">
+        <CurrencyConverter
+          main={main}
+          balances={balances}
+          history={conversionHistory}
+          onConvert={(code, amount) => {
+            // Suma la conversión al historial (arriba de todo).
+            setConversionHistory((h) => [
+              {
+                id: `CV-${3109 + h.length}`,
+                date: new Date().toISOString(),
+                from: code,
+                amount,
+                to: main,
+                received: Math.round(convert(amount, code, main) * 100) / 100,
+              },
+              ...h,
+            ]);
+            setBalances((list) =>
+              list.map((b) =>
+                b.code === code
+                  ? { ...b, available: Math.round((b.available - amount) * 100) / 100 }
+                  : b.code === main
+                    ? { ...b, available: Math.round((b.available + convert(amount, code, main)) * 100) / 100 }
+                    : b,
+              ),
+            );
+          }}
+        />
+      </Card>
 
+      <SectionTitle className="mt-10">Retiros</SectionTitle>
       {/* Historial de retiros, con filtros y totales */}
       <WithdrawalsHistory history={history} accounts={accounts} main={main} />
 
@@ -307,4 +318,9 @@ function WithdrawSheet({
       )}
     </Sheet>
   );
+}
+
+// Título chico de cada fila de la Wallet.
+function SectionTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={`mb-3 text-xs font-medium uppercase tracking-wide text-subtle ${className}`}>{children}</h2>;
 }

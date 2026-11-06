@@ -106,7 +106,7 @@ export function WithdrawalsHistory({
 
   return (
     // Sin overflow-hidden: si no, los menús de los filtros quedan recortados.
-    <Card className="mt-4 scroll-mt-24">
+    <Card className="min-w-0 scroll-mt-24">
       <span id="historial" />
 
       {/* Encabezado con los totales de lo que estás viendo */}

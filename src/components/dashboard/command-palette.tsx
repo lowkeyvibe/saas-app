@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { OrderDrawer } from "@/components/dashboard/order-drawer";
-import { COUNTRY_FLAGS, productById, sales, TODAY, type Sale } from "@/lib/mock-data";
+import { productById, sales, TODAY, type Sale } from "@/lib/mock-data";
 import { configurableStores } from "@/lib/mock-settings";
 import { formatMoney, formatRelativeDateTime } from "@/lib/format";
 import { setThemePref } from "@/lib/theme";
@@ -175,7 +175,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       id: `c-${list[0].email}`,
       group: "Clientes",
       label: list[0].customer,
-      hint: `${COUNTRY_FLAGS[list[0].country] ?? ""} ${list[0].country} · ${list.length} ${list.length === 1 ? "compra" : "compras"} · ver la última`,
+      hint: `${list[0].country} · ${list.length} ${list.length === 1 ? "compra" : "compras"} · ver la última`,
       icon: UserRound,
       run: () => {
         close();

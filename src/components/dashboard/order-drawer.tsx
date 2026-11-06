@@ -19,13 +19,13 @@ import {
 import { Button, ProductThumb, StatusBadge } from "@/components/dashboard/ui";
 import {
   activeStores,
-  COUNTRY_FLAGS,
   saleItems,
   type EmailEventType,
   type Sale,
 } from "@/lib/mock-data";
 import { formatMoney, initials } from "@/lib/format";
 import { BLUR } from "@/components/dashboard/hide-columns-menu";
+import { CountryFlag } from "@/components/dashboard/country-flag";
 import { SourceIcon } from "@/components/dashboard/brand-icons";
 
 const fullDate = new Intl.DateTimeFormat("es-AR", {
@@ -147,8 +147,8 @@ export function OrderDrawer({
               </span>
               <div className="min-w-0">
                 <p className="truncate font-medium">{sale.customer}</p>
-                <p className="text-xs text-subtle">
-                  {COUNTRY_FLAGS[sale.country]} {sale.country}
+                <p className="flex items-center gap-1.5 text-xs text-subtle">
+                  <CountryFlag country={sale.country} className="h-3 w-[18px]" /> {sale.country}
                 </p>
               </div>
             </div>
@@ -164,11 +164,13 @@ export function OrderDrawer({
             <ul className="divide-y divide-border">
               {items.map(({ product: item, step, status }) => (
                 <li key={item.id} className="flex items-center gap-3 px-4 py-3">
-                  <ProductThumb color={item.color} name={item.name} />
+                  <span className={b("articulos")}>
+                    <ProductThumb name={item.name} />
+                  </span>
                   <div className="min-w-0 flex-1">
                     {/* Qué es cada uno va entre paréntesis: el único color que queda es el del estado del pago. */}
                     <p className="truncate text-sm font-medium">
-                      {item.name}{" "}
+                      <span className={b("articulos")}>{item.name}</span>{" "}
                       <span className="font-normal text-subtle">({step === null ? "Producto" : `Upsell ${step}`})</span>
                     </p>
                     <div className="mt-1">
@@ -194,7 +196,7 @@ export function OrderDrawer({
                   Medio de pago
                 </dt>
                 <dd className="ml-auto flex items-center gap-2 font-medium">
-                  <SourceIcon name={sale.method} size="size-6" />
+                  <SourceIcon name={sale.method} size="size-5" />
                   {sale.method}
                 </dd>
               </div>
@@ -220,7 +222,7 @@ export function OrderDrawer({
             <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 text-sm">
               <span className="w-32 shrink-0 text-muted">Canal</span>
               <span className="ml-auto inline-flex items-center gap-2 font-medium">
-                <SourceIcon name={sale.source} size="size-6" />
+                <SourceIcon name={sale.source} size="size-5" />
                 {sale.source}
               </span>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -21,7 +21,7 @@ import {
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { OrderDrawer } from "@/components/dashboard/order-drawer";
 import { SalesTable } from "@/components/dashboard/sales-table";
-import { HideColumnsMenu } from "@/components/dashboard/hide-columns-menu";
+import { HideColumnsMenu, SALE_COLUMNS, useHiddenSaleColumns, type SaleColumn } from "@/components/dashboard/hide-columns-menu";
 import { DateRangePicker, presetLabel, type RangeSelection } from "@/components/dashboard/date-range-picker";
 import { QuickRanges } from "@/components/dashboard/quick-ranges";
 import { useIncludeInactive } from "@/lib/include-inactive";
@@ -36,7 +36,8 @@ import {
 } from "@/lib/mock-data";
 import { formatMoney, formatNumber, formatRange } from "@/lib/format";
 
-const DEFAULT_PRESET = "30d";
+// Al entrar se ve el día de hoy; el usuario lo cambia con los atajos o el calendario.
+const DEFAULT_PRESET = "hoy";
 
 export function Overview() {
   const [range, setRange] = useState<RangeSelection>({ ...presetRange(DEFAULT_PRESET), preset: DEFAULT_PRESET });
@@ -54,22 +55,8 @@ export function Overview() {
   const sparkOrders = summary.series.map((d) => d.orders);
   const sparkTicket = summary.series.map((d) => (d.orders ? d.revenue / d.orders : 0));
 
-  // Columnas de "Últimas ventas" difuminadas para compartir pantalla. Se recuerdan en este navegador.
-  const [hiddenCols, setHiddenCols] = useState<Set<SaleColumn>>(new Set());
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HIDDEN_COLS_KEY) ?? "[]") as SaleColumn[];
-      const valid = saved.filter((k) => SALE_COLUMNS.some((c) => c.key === k));
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- se lee del navegador después de montar
-      if (valid.length) setHiddenCols(new Set(valid));
-    } catch {
-      // Si lo guardado está roto, se arranca sin columnas ocultas.
-    }
-  }, []);
-  const updateHiddenCols = (next: Set<SaleColumn>) => {
-    setHiddenCols(next);
-    localStorage.setItem(HIDDEN_COLS_KEY, JSON.stringify([...next]));
-  };
+  // Columnas de "Últimas ventas" difuminadas para compartir pantalla (las mismas que en Ventas).
+  const [hiddenCols, updateHiddenCols] = useHiddenSaleColumns();
   // Lo elegido en el menú: un producto o una tienda inactiva.
   const product = productId ? summary.byProduct.find((e) => e.id === productId) : undefined;
 
@@ -79,7 +66,7 @@ export function Overview() {
     range.preset === "custom"
       ? `Así vienen ${whose} del ${rangeLabel}.`
       : `Así vienen ${whose}: ${presetLabel(range.preset).toLowerCase()} (${rangeLabel}).`;
-  const deltaHint = `vs. ${summary.days === 1 ? "día" : `${summary.days} días`} anteriores`;
+  const deltaHint = summary.days === 1 ? "vs. el día anterior" : `vs. ${summary.days} días anteriores`;
   const recent = sales.filter((s) => !productId || s.productId === productId).slice(0, RECENT_SALES);
   const storeRevenue = summary.byProduct.reduce((a, e) => a + e.revenue, 0);
 
@@ -206,14 +193,6 @@ export function Overview() {
 // Últimas ventas del Resumen: solo las 10 más recientes. El historial completo está en Ventas.
 const RECENT_SALES = 10;
 
-// Columnas de "Últimas ventas" que se pueden ocultar con el botón "Ocultar datos".
-const SALE_COLUMNS = [
-  { key: "cliente", label: "Cliente" },
-  { key: "tienda", label: "Tienda" },
-  { key: "total", label: "Total" },
-] as const;
-type SaleColumn = (typeof SALE_COLUMNS)[number]["key"];
-const HIDDEN_COLS_KEY = "ultimas-ventas:columnas-ocultas";
 
 
 // Últimas ventas: la tabla compartida con Ventas y el panel de detalle de la orden.
@@ -293,7 +272,7 @@ function TopProducts({
                 <div className="flex items-center gap-3.5">
                   {/* Imagen del producto con su medalla en la esquina */}
                   <span className={`relative shrink-0 rounded-xl ring-2 ${MEDALS[i].ring}`} title={MEDALS[i].label}>
-                    <ProductThumb color={p.color} name={p.name} size="lg" />
+                    <ProductThumb name={p.name} size="lg" />
                     <span
                       aria-label={MEDALS[i].label}
                       className={`absolute -bottom-2 -right-2 grid size-7 place-items-center rounded-full bg-gradient-to-br ring-2 ring-surface ${MEDALS[i].badge} ${MEDALS[i].glow}`}

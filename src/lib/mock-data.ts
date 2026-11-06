@@ -125,14 +125,14 @@ const lastNames = ["González", "Rodríguez", "Fernández", "López", "Martínez
 const countries = ["Argentina", "Argentina", "Argentina", "México", "Uruguay", "Chile", "Colombia", "España"];
 const sources: TrafficSource[] = ["Facebook Ads", "Facebook Ads", "Facebook Ads", "Instagram", "Instagram", "TikTok", "Google", "Email", "Directo"];
 
-// Bandera (emoji) de cada país que aparece en los datos.
-export const COUNTRY_FLAGS: Record<string, string> = {
-  Argentina: "🇦🇷",
-  México: "🇲🇽",
-  Uruguay: "🇺🇾",
-  Chile: "🇨🇱",
-  Colombia: "🇨🇴",
-  España: "🇪🇸",
+// Código ISO de cada país que aparece en los datos (para la bandera en SVG, ver country-flag.tsx).
+export const COUNTRY_CODES: Record<string, string> = {
+  Argentina: "AR",
+  México: "MX",
+  Uruguay: "UY",
+  Chile: "CL",
+  Colombia: "CO",
+  España: "ES",
 };
 const methods: PaymentMethod[] = ["Mercado Pago", "Mercado Pago", "Mercado Pago", "Stripe", "PayPal", "Transferencia"];
 const statuses: SaleStatus[] = ["aprobada", "aprobada", "aprobada", "aprobada", "aprobada", "aprobada", "pendiente", "rechazada", "reembolsada"];

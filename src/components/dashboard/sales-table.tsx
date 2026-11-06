@@ -7,7 +7,7 @@ import { formatMoney, formatRelativeDateTime } from "@/lib/format";
 
 // Tabla de ventas única: la usan "Últimas ventas" del Resumen y el historial de Ventas, con las mismas columnas.
 // Tocar una fila llama a onSelect (para abrir el detalle de la orden).
-// `hidden`: columnas difuminadas con "Ocultar datos" (cliente, tienda, total).
+// `hidden`: columnas difuminadas con "Ocultar datos" (cliente, artículos, tienda, total).
 export function SalesTable({
   rows,
   onSelect,
@@ -64,7 +64,7 @@ export function SalesTable({
                 </td>
                 <td className="whitespace-nowrap px-5 py-3 text-muted">{formatRelativeDateTime(s.date, TODAY)}</td>
                 <td className={`whitespace-nowrap px-5 py-3 ${blur("cliente")}`}>{s.customer}</td>
-                <td className="max-w-56 px-5 py-3">
+                <td className={`max-w-56 px-5 py-3 ${blur("articulos")}`}>
                   <p className="truncate text-muted">{product?.name}</p>
                   {upsells > 0 && (
                     <p className="text-xs text-subtle">
