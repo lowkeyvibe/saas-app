@@ -33,10 +33,10 @@ export type CurrencyBalance = { code: string; available: number; pending: number
 
 export const currencyBalances: CurrencyBalance[] = [
   { code: "USD", available: stats.available, pending: 1200.04 }, // con las demás monedas suma lo mismo que el calendario (US$ 1,926.60)
-  { code: "EUR", available: 0, pending: 22 },
+  { code: "EUR", available: 185.5, pending: 22 },
   { code: "ARS", available: 0, pending: 310_000 },
   { code: "MXN", available: 850, pending: 2_400 },
-  { code: "COP", available: 0, pending: 640_000 },
+  { code: "COP", available: 260_000, pending: 640_000 },
   { code: "CLP", available: 0, pending: 96_000 },
 ];
 
@@ -91,7 +91,7 @@ export const releases: Release[] = (() => {
   return [...byDate.values()].map((r) => ({ ...r, amount: Math.round(r.amount * 100) / 100 }));
 })();
 
-// Pasarelas donde está la plata. Cada una retiene las ventas unos días antes de liberarlas.
+// Pasarelas donde está el dinero. Cada una retiene las ventas unos días antes de liberarlas.
 // Los montos están pasados a USD.
 export type Gateway = {
   id: "mercadopago" | "stripe" | "paypal" | "whop";
@@ -120,7 +120,7 @@ export const balance = {
   withdrawnThisMonth: 1840,
 };
 
-// Cuentas a las que el vendedor retira la plata.
+// Cuentas a las que el vendedor retira el dinero.
 export type PayoutMethod = {
   id: string;
   kind: "banco" | "mercadopago" | "paypal" | "cripto";
@@ -195,4 +195,29 @@ export const withdrawals: Withdrawal[] = [
   { id: "RT-20701", date: `${addDays(TODAY, -22)}T11:48:00.000Z`, amount: 410, methodId: "pm2", status: "acreditado" },
   { id: "RT-20655", date: `${addDays(TODAY, -29)}T13:15:00.000Z`, amount: 690.4, methodId: "pm1", status: "acreditado" },
   { id: "RT-20618", date: `${addDays(TODAY, -36)}T08:57:00.000Z`, amount: 305, methodId: "pm1", status: "acreditado" },
+  { id: "RT-20590", date: `${addDays(TODAY, -42)}T15:20:00.000Z`, amount: 450, methodId: "pm2", status: "acreditado" },
+  { id: "RT-20544", date: `${addDays(TODAY, -50)}T10:05:00.000Z`, amount: 320, currency: "EUR", methodId: "pm1", status: "acreditado" },
+  { id: "RT-20512", date: `${addDays(TODAY, -58)}T17:42:00.000Z`, amount: 610, methodId: "pm1", status: "acreditado" },
+  { id: "RT-20470", date: `${addDays(TODAY, -66)}T12:10:00.000Z`, amount: 180, methodId: "pm3", status: "rechazado", note: "La red elegida no coincidía con la billetera." },
+];
+
+// ── Historial de conversiones ────────────────────────────────────────────────
+// Cada vez que el vendedor pasa un saldo de otra moneda a su moneda principal.
+export type Conversion = {
+  id: string;
+  date: string;
+  from: string; // moneda de origen
+  amount: number; // monto en la moneda de origen
+  to: MainCurrency;
+  received: number; // lo que recibió en la moneda principal
+};
+
+export const conversions: Conversion[] = [
+  { id: "CV-3108", date: `${addDays(TODAY, -2)}T16:40:00.000Z`, from: "MXN", amount: 1_850, to: "USD", received: 101.2 },
+  { id: "CV-3097", date: `${addDays(TODAY, -4)}T11:05:00.000Z`, from: "EUR", amount: 120, to: "USD", received: 129.1 },
+  { id: "CV-3081", date: `${addDays(TODAY, -9)}T19:22:00.000Z`, from: "ARS", amount: 245_000, to: "USD", received: 243.6 },
+  { id: "CV-3064", date: `${addDays(TODAY, -15)}T09:48:00.000Z`, from: "COP", amount: 410_000, to: "USD", received: 101.9 },
+  { id: "CV-3052", date: `${addDays(TODAY, -21)}T14:30:00.000Z`, from: "CLP", amount: 88_000, to: "USD", received: 91.8 },
+  { id: "CV-3040", date: `${addDays(TODAY, -27)}T18:12:00.000Z`, from: "MXN", amount: 3_200, to: "USD", received: 175.3 },
+  { id: "CV-3021", date: `${addDays(TODAY, -36)}T10:55:00.000Z`, from: "EUR", amount: 260, to: "USD", received: 279.4 },
 ];

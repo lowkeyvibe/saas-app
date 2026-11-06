@@ -12,7 +12,13 @@ import {
   ShoppingCart,
   Sparkles,
   Ticket,
+  ChevronRight,
+  Wallet as WalletIcon,
 } from "lucide-react";
+import { accountSettings } from "@/lib/mock-settings";
+import { balance, releases } from "@/lib/mock-wallet";
+import { formatMoney } from "@/lib/format";
+import { CountUp } from "./ui";
 import { site } from "@/config/site";
 import { products } from "@/lib/mock-data";
 import { mainNav, secondaryNav, type NavItem } from "./nav";
@@ -200,18 +206,81 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <ProductsNav onNavigate={onNavigate} />
       )}
 
-      <div className="mt-auto rounded-xl border border-border bg-gradient-to-b from-violet-500/10 to-transparent p-4">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles className="size-4 text-brand" />
-          Plan Gratis
-        </div>
-        <p className="mt-1 text-xs leading-relaxed text-muted">
-          Pasate a Pro para usar dominio propio y bajar la comisión por venta.
-        </p>
-        <button className="mt-3 w-full rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-500">
-          Mejorar plan
-        </button>
+      {/* Abajo: tu saldo y tu plan, siempre a mano. */}
+      <div className="mt-auto space-y-3">
+        <WalletWidget onNavigate={onNavigate} />
+        <PlanCard onNavigate={onNavigate} />
       </div>
     </div>
+  );
+}
+
+// Tarjeta de la Wallet en la columna (siempre violeta oscura, como una tarjeta bancaria, en los dos temas):
+// saldo disponible, lo que entra mañana y en los próximos 7 días. Lleva a la Wallet.
+function WalletWidget({ onNavigate }: { onNavigate?: () => void }) {
+  const week = releases.slice(0, 7);
+  const weekTotal = week.reduce((a, r) => a + r.amount, 0);
+
+  return (
+    <Link
+      href="/dashboard/wallet"
+      onClick={onNavigate}
+      className="group relative block overflow-hidden rounded-2xl border border-violet-400/30 bg-[linear-gradient(135deg,#5b21b6_0%,#3b0764_48%,#1e1b4b_100%)] p-4 shadow-lg shadow-violet-950/30 transition hover:border-violet-400/50 hover:shadow-violet-900/40"
+    >
+      {/* Brillos de fondo */}
+      <div className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-violet-400/25 blur-2xl transition group-hover:bg-violet-400/35" />
+      <div className="pointer-events-none absolute -bottom-16 -left-10 size-32 rounded-full bg-fuchsia-500/15 blur-2xl" />
+
+      <div className="relative flex items-center justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-[#ddd6fe]/80">Saldo disponible</p>
+        <span className="grid size-7 place-items-center rounded-lg bg-white/10 text-[#ede9fe] ring-1 ring-inset ring-white/15">
+          <WalletIcon className="size-3.5" />
+        </span>
+      </div>
+      <p className="relative mt-1.5 text-2xl font-semibold tracking-tight tabular-nums text-white">
+        <CountUp value={balance.available} format={formatMoney} />
+      </p>
+
+      {/* Lo que entra: mañana y en los próximos 7 días */}
+      <div className="relative mt-4 divide-y divide-white/10 rounded-xl bg-black/25 ring-1 ring-inset ring-white/10">
+        <div className="flex items-center justify-between px-3 py-2 text-xs">
+          <span className="flex items-center gap-1.5 text-[#ede9fe]/80">
+            <span className="size-1.5 rounded-full bg-[#34d399] shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+            Mañana
+          </span>
+          <span className="font-semibold tabular-nums text-[#6ee7b7]">+{formatMoney(week[0].amount)}</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-2 text-xs">
+          <span className="text-[#ddd6fe]/70">Esta semana</span>
+          <span className="flex items-center gap-1 font-medium tabular-nums text-[#ede9fe]">
+            +{formatMoney(weekTotal)}
+            <ChevronRight className="size-3.5 text-[#ddd6fe]/60 transition group-hover:translate-x-0.5" />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// Plan de la cuenta (el mismo que en Configuración → Mi cuenta).
+function PlanCard({ onNavigate }: { onNavigate?: () => void }) {
+  const renews = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${accountSettings.renewsOn}T00:00:00Z`),
+  );
+  return (
+    <Link
+      href="/dashboard/configuracion#cuenta"
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 transition hover:border-violet-500/40 hover:bg-violet-500/5"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20">
+        <Sparkles className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block text-sm font-medium">Plan {accountSettings.plan}</span>
+        <span className="block text-[11px] text-subtle">Se renueva el {renews}</span>
+      </span>
+      <ChevronRight className="size-4 text-subtle" />
+    </Link>
   );
 }

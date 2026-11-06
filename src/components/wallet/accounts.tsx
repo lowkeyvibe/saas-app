@@ -186,7 +186,7 @@ export function AccountsSheet({
   const title = view === "agregar" ? "Agregar cuenta" : editing ? `Editar ${editing.name}` : "Cuentas";
   const description =
     view === "agregar" || editing
-      ? "A dónde te mandamos la plata cuando retirás."
+      ? "A dónde te mandamos el dinero cuando retirás."
       : `${accounts.length} ${accounts.length === 1 ? "cuenta" : "cuentas"} para retirar`;
 
   return (
@@ -445,7 +445,7 @@ function AccountForm({
           </Field>
           <p className="flex gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs leading-relaxed text-muted">
             <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-            Revisá que la red coincida con la de tu billetera: si no, la plata se pierde. La verificamos antes del primer retiro
+            Revisá que la red coincida con la de tu billetera: si no, el dinero se pierde. La verificamos antes del primer retiro
             {initial?.kind === "cripto" ? " (y otra vez si cambiás la dirección o la red)" : ""}.
           </p>
         </>

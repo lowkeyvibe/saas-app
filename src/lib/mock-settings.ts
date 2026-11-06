@@ -29,7 +29,7 @@ export type StoreSettings = {
 
 const STORE_EXTRAS: Record<string, Partial<StoreSettings>> = {
   t1: {
-    tabTitle: "Vida Simple · Guías para ordenar tu plata y tu vida",
+    tabTitle: "Vida Simple · Guías para ordenar tu dinero y tu vida",
     pixels: [{ id: "px1", pixelId: "1804256307288258", token: "EAAGm0PX4ZCpsBAKZB7uLq9fXnR3vYtT2cW8sQ1dE5hJ" }],
     clarityId: "z70aouxkts",
     metaVerification: "qynhxqzzyo6e7fczkl7bv8c3yizhh3",

@@ -68,14 +68,32 @@ export function RevenueChart({
       >
         <defs>
           <linearGradient id="rev-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--series-1)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--series-1)" stopOpacity="0" />
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.32" />
+            <stop offset="60%" stopColor="#8b5cf6" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
           </linearGradient>
+          {/* Línea: de violeta oscuro a claro, como las barras de progreso. */}
+          <linearGradient id="rev-line" x1="0" x2="1">
+            <stop offset="0%" stopColor="#6d28d9" />
+            <stop offset="55%" stopColor="#8b5cf6" />
+            <stop offset="100%" stopColor="#c4b5fd" />
+          </linearGradient>
+          <filter id="rev-glow" x="-10%" y="-30%" width="120%" height="160%">
+            <feGaussianBlur stdDeviation="4" />
+          </filter>
         </defs>
 
         {ticks.map((t) => (
           <g key={t.v}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} stroke="var(--border)" strokeWidth={1} />
+            <line
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={t.y}
+              y2={t.y}
+              stroke="var(--border)"
+              strokeWidth={1}
+              strokeDasharray={t.v === 0 ? undefined : "3 5"}
+            />
             <text x={PAD.left - 10} y={t.y + 4} textAnchor="end" className="fill-subtle text-[11px]">
               {t.v === 0 ? "0" : formatCompactMoney(t.v)}
             </text>
@@ -94,8 +112,29 @@ export function RevenueChart({
           </text>
         ))}
 
-        <path d={areaPath} fill="url(#rev-fill)" />
-        <path d={linePath} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={areaPath} fill="url(#rev-fill)" className="transition-opacity duration-700 starting:opacity-0" />
+        {/* Resplandor debajo de la línea */}
+        <path d={linePath} fill="none" stroke="#8b5cf6" strokeOpacity={0.45} strokeWidth={6} filter="url(#rev-glow)" />
+        {/* La línea se dibuja de izquierda a derecha al aparecer (key: vuelve a animar si cambia el período). */}
+        <path
+          key={`${data.length}-${data[0]?.date}`}
+          d={linePath}
+          fill="none"
+          stroke="url(#rev-line)"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          pathLength={1}
+          strokeDasharray={1}
+          className="transition-[stroke-dashoffset] duration-1000 ease-out [stroke-dashoffset:0] starting:[stroke-dashoffset:1]"
+        />
+        {/* Último día: punto luminoso con un anillo que late */}
+        {data.length > 1 && !active && (
+          <g>
+            <circle cx={points.at(-1)!.x} cy={points.at(-1)!.y} r={9} fill="#8b5cf6" opacity={0.25} className="animate-ping [transform-box:fill-box] [transform-origin:center]" />
+            <circle cx={points.at(-1)!.x} cy={points.at(-1)!.y} r={4.5} fill="#c4b5fd" stroke="var(--surface)" strokeWidth={2} />
+          </g>
+        )}
 
         {data.length === 1 && !active && (
           <circle cx={points[0].x} cy={points[0].y} r={4} fill="var(--series-1)" />
@@ -103,8 +142,9 @@ export function RevenueChart({
 
         {active && (
           <g>
-            <line x1={active.x} x2={active.x} y1={PAD.top} y2={H - PAD.bottom} stroke="var(--muted)" strokeOpacity={0.35} strokeWidth={1} />
-            <circle cx={active.x} cy={active.y} r={5} fill="var(--series-1)" stroke="var(--surface)" strokeWidth={2} />
+            <line x1={active.x} x2={active.x} y1={PAD.top} y2={H - PAD.bottom} stroke="#8b5cf6" strokeOpacity={0.4} strokeWidth={1} strokeDasharray="3 4" />
+            <circle cx={active.x} cy={active.y} r={10} fill="#8b5cf6" opacity={0.2} />
+            <circle cx={active.x} cy={active.y} r={5} fill="#c4b5fd" stroke="var(--surface)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -119,7 +159,7 @@ export function RevenueChart({
         >
           <p className="text-subtle">{formatDate(active.d.date)}</p>
           <p className="mt-1 flex items-center gap-2 font-medium text-foreground">
-            <span className="size-2 rounded-full bg-series-1" />
+            <span className="size-2 rounded-full bg-gradient-to-r from-violet-600 to-violet-400" />
             {formatMoney(active.d.revenue)}
           </p>
           <p className="mt-0.5 pl-4 text-muted">{active.d.orders} ventas</p>

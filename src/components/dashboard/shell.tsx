@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Menu, Settings, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
+import { Menu, Settings, PanelLeftClose, PanelLeftOpen, Search, X } from "lucide-react";
 import { SidebarContent, Logo } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
+import { StoresMenu } from "./stores-menu";
+import { CommandPalette } from "./command-palette";
 
 const user = { name: "Lautaro Carbone", store: "lautaro.nexo.app" };
 
@@ -18,6 +20,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   // En escritorio la columna se puede esconder con el botón del borde.
   const [collapsed, setCollapsed] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -79,25 +82,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
           {/* Buscador y, a su derecha, notificaciones y tema. */}
           <div className="flex items-center gap-2 md:max-w-md md:flex-1">
-            <div className="relative hidden flex-1 md:block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-              <input
-                placeholder="Buscar productos, ventas, clientes…"
-                className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm placeholder:text-subtle focus:border-violet-500/60 focus:outline-none"
-              />
-            </div>
+            {/* Abre el buscador rápido (también con ⌘K / Ctrl+K). */}
+            <button
+              type="button"
+              onClick={() => setSearching(true)}
+              className="group hidden h-9 flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-left text-sm text-subtle transition hover:border-violet-500/40 hover:bg-violet-500/5 md:flex"
+            >
+              <Search className="size-4 transition group-hover:text-violet-300" />
+              <span className="flex-1 truncate">Buscar ventas, clientes, tiendas…</span>
+              <kbd className="rounded-md border border-border bg-surface-2 px-1.5 py-0.5 font-sans text-[10px] font-medium">⌘K</kbd>
+            </button>
+            <button type="button" onClick={() => setSearching(true)} className={`${iconButton} md:hidden`} aria-label="Buscar">
+              <Search className="size-4" />
+            </button>
             <NotificationsMenu buttonClassName={iconButton} />
             <ThemeToggle className={iconButton} />
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <a
-              href="#"
-              className="hidden items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-overlay/5 hover:text-foreground sm:flex"
-            >
-              Ver mi tienda
-              <ExternalLink className="size-3.5" />
-            </a>
+            <StoresMenu />
             <Link href="/dashboard/configuracion" className={iconButton} aria-label="Configuración" title="Configuración">
               <Settings className="size-4" />
             </Link>
@@ -105,7 +108,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        {/* Resplandor violeta muy suave arriba de cada página, para que el fondo no sea negro plano. */}
+        <div className="relative">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(139,92,246,0.10),transparent)]"
+          />
+          <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        </div>
+        <CommandPalette open={searching} onOpenChange={setSearching} />
       </div>
     </div>
   );

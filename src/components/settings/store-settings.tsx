@@ -69,7 +69,7 @@ const SECTIONS: Section[] = [
   {
     id: "pagos",
     label: "Pagos",
-    description: "Dónde recibís la plata y cómo pagan tus compradores.",
+    description: "Dónde recibís el dinero y cómo pagan tus compradores.",
     icon: Wallet,
     group: "Ventas",
     Component: PagosTab,

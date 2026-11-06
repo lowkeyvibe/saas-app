@@ -10,40 +10,34 @@ import {
   Landmark,
   ShieldCheck,
 } from "lucide-react";
-import { Card, CardHeader } from "@/components/dashboard/ui";
-import { CurrencyBalanceCard } from "./currency-balance";
-import { SettlementsCard } from "./settlements-card";
+import { CurrencyList, WalletPanel } from "./wallet-hero";
+import { WithdrawalsHistory } from "./withdrawals-history";
 import { AccountsSheet, METHOD_ICON, type AccountsView } from "./accounts";
 import { Sheet, primaryButton, secondaryButton } from "@/components/settings/settings-ui";
 import { formatCurrency } from "@/lib/format";
+import { TODAY } from "@/lib/mock-data";
 import {
-  balance,
   convert,
+  conversions as initialConversions,
   currencyBalances,
   payoutMethods,
   withdrawals as initialWithdrawals,
+  type Conversion,
   type CurrencyBalance,
   type MainCurrency,
   type PayoutMethod,
   type Withdrawal,
-  type WithdrawalStatus,
 } from "@/lib/mock-wallet";
 
 const MIN_WITHDRAWAL = 10;
 
-const shortDate = (iso: string) =>
-  new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(iso));
 
 
-const STATUS: Record<WithdrawalStatus, { label: string; className: string }> = {
-  acreditado: { label: "Acreditado", className: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20" },
-  "en-proceso": { label: "En camino", className: "bg-amber-500/10 text-amber-400 ring-amber-500/20" },
-  rechazado: { label: "Rechazado", className: "bg-rose-500/10 text-rose-400 ring-rose-500/20" },
-};
 
 export function Wallet() {
   const [main, setMain] = useState<MainCurrency>("USD");
   const [balances, setBalances] = useState<CurrencyBalance[]>(currencyBalances);
+  const [conversionHistory, setConversionHistory] = useState<Conversion[]>(initialConversions);
   const available = balances.find((b) => b.code === main)!.available;
   const [history, setHistory] = useState<Withdrawal[]>(initialWithdrawals);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -54,6 +48,10 @@ export function Wallet() {
   const [accountsView, setAccountsView] = useState<AccountsView | null>(null);
   const account = accounts.find((a) => a.id === accountId);
 
+  // Lo acreditado este mes, sacado del mismo historial que se ve abajo (así coinciden).
+  const withdrawnThisMonth = history
+    .filter((w) => w.status === "acreditado" && w.date.slice(0, 7) === TODAY.slice(0, 7))
+    .reduce((a, w) => a + convert(w.amount, w.currency ?? "USD", main), 0);
   // Retiros en camino, pasados a la moneda principal.
   const inTransit = history
     .filter((w) => w.status === "en-proceso")
@@ -64,7 +62,7 @@ export function Wallet() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Wallet</h1>
-          <p className="mt-1 text-sm text-muted">Tu plata: lo que podés retirar, lo que está por liberarse y a dónde la mandás.</p>
+          <p className="mt-1 text-sm text-muted">Tu dinero: lo que podés retirar, lo que está por liberarse y a dónde lo mandás.</p>
         </div>
         <button type="button" onClick={() => setAccountsView("lista")} className={`${primaryButton} self-start sm:self-auto`}>
           <Landmark className="size-4" /> Cuentas
@@ -72,97 +70,53 @@ export function Wallet() {
         </button>
       </div>
 
-      {/* Dos cards del mismo tamaño: saldos por moneda y acreditaciones por fecha. */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <CurrencyBalanceCard
-          main={main}
-          balances={balances}
-          onChangeMain={setMain}
-          onWithdraw={() => account && setWithdrawing(true)}
-          accounts={accounts}
-          accountId={accountId}
-          onSelectAccount={setAccountId}
-          onAddAccount={() => setAccountsView("agregar")}
-          onConvert={(code, amount) =>
-            setBalances((list) =>
-              list.map((b) =>
-                b.code === code
-                  ? { ...b, available: Math.round((b.available - amount) * 100) / 100 }
-                  : b.code === main
-                    ? { ...b, available: Math.round((b.available + convert(amount, code, main)) * 100) / 100 }
-                    : b,
-              ),
-            )
-          }
-        />
-        {/* Mismo alto que la card de saldos: la lista de fechas scrollea adentro. */}
-        <div className="relative lg:min-h-[32rem]">
-          <SettlementsCard main={main} className="lg:absolute lg:inset-0" />
-        </div>
-      </div>
+      {/* Panel: tu dinero (izquierda) y cuándo te entra, día por día (derecha). */}
+      <WalletPanel
+        main={main}
+        onChangeMain={setMain}
+        available={available}
+        pending={balances.reduce((a, b) => a + convert(b.pending, b.code, main), 0)}
+        inTransit={inTransit}
+        withdrawn={withdrawnThisMonth}
+        accounts={accounts}
+        accountId={accountId}
+        onSelectAccount={setAccountId}
+        onAddAccount={() => setAccountsView("agregar")}
+        onWithdraw={() => account && setWithdrawing(true)}
+      />
 
-      {/* Historial de retiros */}
-      <Card className="mt-4 overflow-hidden">
-        <CardHeader
-          title="Historial de retiros"
-          description={`${history.length} retiros`}
-          action={
-            <div className="flex gap-6 text-right text-xs">
-              <div>
-                <p className="text-subtle">Retirado este mes</p>
-                <p className="mt-0.5 text-sm font-medium tabular-nums">
-                  {formatCurrency(convert(balance.withdrawnThisMonth, "USD", main), main)}
-                </p>
-              </div>
-              <div>
-                <p className="text-subtle">En camino</p>
-                <p className="mt-0.5 text-sm font-medium tabular-nums text-amber-400">
-                  {inTransit ? formatCurrency(inTransit, main) : "Nada"}
-                </p>
-              </div>
-            </div>
-          }
-        />
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-y border-border text-left text-xs text-subtle">
-                <th className="px-5 py-2.5 font-medium">Retiro</th>
-                <th className="px-5 py-2.5 font-medium">Fecha</th>
-                <th className="px-5 py-2.5 font-medium">Cuenta</th>
-                <th className="px-5 py-2.5 font-medium">Estado</th>
-                <th className="px-5 py-2.5 text-right font-medium">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {history.map((w) => {
-                const method = accounts.find((m) => m.id === w.methodId);
-                const st = STATUS[w.status];
-                return (
-                  <tr key={w.id} className="transition hover:bg-violet-500/10">
-                    <td className="whitespace-nowrap px-5 py-3 font-medium tabular-nums">{w.id}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-muted">{shortDate(w.date)}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-muted">{method?.name ?? "—"}</td>
-                    <td className="px-5 py-3">
-                      <span
-                        title={w.note}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${st.className}`}
-                      >
-                        <span className="size-1.5 rounded-full bg-current" />
-                        {st.label}
-                      </span>
-                      {w.note && <p className="mt-1 text-xs text-subtle">{w.note}</p>}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums">
-                      {formatCurrency(w.amount, w.currency ?? "USD")}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* Tus otras monedas */}
+      <CurrencyList
+        main={main}
+        balances={balances}
+        history={conversionHistory}
+        onConvert={(code, amount) => {
+          // Suma la conversión al historial (arriba de todo).
+          setConversionHistory((h) => [
+            {
+              id: `CV-${3109 + h.length}`,
+              date: new Date().toISOString(),
+              from: code,
+              amount,
+              to: main,
+              received: Math.round(convert(amount, code, main) * 100) / 100,
+            },
+            ...h,
+          ]);
+          setBalances((list) =>
+            list.map((b) =>
+              b.code === code
+                ? { ...b, available: Math.round((b.available - amount) * 100) / 100 }
+                : b.code === main
+                  ? { ...b, available: Math.round((b.available + convert(amount, code, main)) * 100) / 100 }
+                  : b,
+            ),
+          );
+        }}
+      />
+
+      {/* Historial de retiros, con filtros y totales */}
+      <WithdrawalsHistory history={history} accounts={accounts} main={main} />
 
       <AccountsSheet
         view={accountsView}

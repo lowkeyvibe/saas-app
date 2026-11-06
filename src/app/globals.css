@@ -74,6 +74,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  /* Reserva el lugar de la barra de desplazamiento: la página no salta de costado cuando cambia de largo. */
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -91,4 +96,20 @@ body {
 
 .light * {
   scrollbar-color: #d4d4d8 transparent;
+}
+
+/* Destello que recorre las flechas del "recorrido de tu dinero" en la Wallet. */
+@keyframes flow {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[flow_1\.6s_linear_infinite\] {
+    animation: none;
+  }
 }

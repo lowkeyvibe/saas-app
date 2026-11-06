@@ -36,7 +36,7 @@ export function PagosTab() {
 
   return (
     <>
-      <Section title="Medios de cobro" description="Las cuentas donde recibís la plata de esta tienda. Podés tener varias activas.">
+      <Section title="Medios de cobro" description="Las cuentas donde recibís el dinero de esta tienda. Podés tener varias activas.">
         <Block>
           <div className="grid gap-3 sm:grid-cols-2">
             {paymentProviders.map((p) => (

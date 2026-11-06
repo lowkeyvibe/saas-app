@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DollarSign,
   Download,
@@ -25,6 +25,11 @@ import { formatMoney, formatNumber, formatRange } from "@/lib/format";
 // Solo ventas aprobadas: este es el historial de lo que se vendió de verdad, en todas las tiendas.
 const approved = sales.filter((s) => s.status === "aprobada");
 
+// Todas las opciones de cada desglose (salen del historial completo).
+const ALL_COUNTRIES = [...new Set(approved.map((s) => s.country))];
+const ALL_SOURCES = [...new Set(approved.map((s) => s.source))];
+const ALL_METHODS = [...new Set(approved.map((s) => s.method))];
+
 const storeOf = (s: Sale) => activeStores.find((t) => t.id === productById(s.productId)?.storeId);
 const upsellRevenue = (s: Sale) =>
   s.upsells.filter((u) => u.status === "aprobada").reduce((a, u) => a + (productById(u.productId)?.price ?? 0), 0);
@@ -33,6 +38,13 @@ const approvedUpsells = (s: Sale) => s.upsells.filter((u) => u.status === "aprob
 export function SalesHistory() {
   const [selected, setSelected] = useState<Sale | null>(null);
   const closeDrawer = useCallback(() => setSelected(null), []);
+
+  // Si llegás con #historial (desde "Ver todas" del Resumen), baja directo a la tabla, en "Histórico".
+  useEffect(() => {
+    if (window.location.hash !== "#historial") return;
+    const t = setTimeout(() => document.getElementById("historial")?.closest(".scroll-mt-24")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+    return () => clearTimeout(t);
+  }, []);
 
   // Período: mismos atajos y calendario que el Resumen. Arranca en "Histórico" porque es el historial general.
   const [range, setRange] = useState<RangeSelection>({ ...presetRange("maximo"), preset: "maximo" });
@@ -64,8 +76,10 @@ export function SalesHistory() {
   }, [rows]);
 
   const breakdown = useMemo(() => {
-    const group = (key: (s: Sale) => string) => {
-      const map = new Map<string, { orders: number; revenue: number }>();
+    // `all`: todas las opciones posibles, para que cada desglose tenga siempre las mismas filas
+    // (las que no vendieron en el período quedan en $0) y la card no cambie de alto.
+    const group = (key: (s: Sale) => string, all: string[]) => {
+      const map = new Map<string, { orders: number; revenue: number }>(all.map((k) => [k, { orders: 0, revenue: 0 }]));
       for (const s of rows) {
         const k = key(s);
         const g = map.get(k) ?? { orders: 0, revenue: 0 };
@@ -76,10 +90,10 @@ export function SalesHistory() {
       return [...map.entries()].map(([label, v]) => ({ label, ...v })).sort((a, b) => b.revenue - a.revenue);
     };
     return {
-      stores: group((s) => storeOf(s)?.name ?? "—"),
-      countries: group((s) => s.country),
-      sources: group((s) => s.source),
-      methods: group((s) => s.method),
+      stores: group((s) => storeOf(s)?.name ?? "—", activeStores.map((t) => t.name)),
+      countries: group((s) => s.country, ALL_COUNTRIES),
+      sources: group((s) => s.source, ALL_SOURCES),
+      methods: group((s) => s.method, ALL_METHODS),
     };
   }, [rows]);
 
@@ -135,14 +149,14 @@ export function SalesHistory() {
 
       {/* Números clave */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={ShoppingBag} label="Ventas aprobadas" value={formatNumber(kpis.orders)} footer={`en ${kpis.stores} ${kpis.stores === 1 ? "tienda" : "tiendas"}`} />
-        <StatCard icon={DollarSign} label="Ingresos totales" value={formatMoney(kpis.revenue)} footer="USD, con upsells incluidos" />
-        <StatCard icon={Receipt} label="Ticket promedio" value={formatMoney(kpis.avgTicket)} footer="por venta" />
-        <StatCard icon={Users} label="Clientes" value={formatNumber(kpis.customers)} footer={`${kpis.returning} ${kpis.returning === 1 ? "compró" : "compraron"} más de una vez`} />
-        <StatCard icon={Globe2} label="Países" value={formatNumber(kpis.countries)} footer="distintos que compraron" />
-        <StatCard icon={Store} label="Tiendas con ventas" value={`${kpis.stores} de ${activeStores.length}`} footer="tiendas activas" />
-        <StatCard icon={Repeat} label="Upsells aceptados" value={formatNumber(kpis.upsells)} footer={`${kpis.upsellRate.toFixed(0)} % de las ventas sumó al menos uno`} />
-        <StatCard icon={TrendingUp} label="Ingresos por upsells" value={formatMoney(kpis.upsellRevenue)} footer={`${kpis.revenue ? ((kpis.upsellRevenue / kpis.revenue) * 100).toFixed(0) : 0} % de los ingresos`} />
+        <StatCard icon={ShoppingBag} label="Ventas aprobadas" value={formatNumber(kpis.orders)} numeric={kpis.orders} format={(n) => formatNumber(Math.round(n))} footer={`en ${kpis.stores} ${kpis.stores === 1 ? "tienda" : "tiendas"}`} />
+        <StatCard icon={DollarSign} label="Ingresos totales" value={formatMoney(kpis.revenue)} numeric={kpis.revenue} format={formatMoney} footer="USD, con upsells incluidos" />
+        <StatCard icon={Receipt} label="Ticket promedio" value={formatMoney(kpis.avgTicket)} numeric={kpis.avgTicket} format={formatMoney} footer="por venta" />
+        <StatCard icon={Users} label="Clientes" value={formatNumber(kpis.customers)} numeric={kpis.customers} format={(n) => formatNumber(Math.round(n))} footer={`${kpis.returning} ${kpis.returning === 1 ? "compró" : "compraron"} más de una vez`} />
+        <StatCard icon={Globe2} label="Países" value={formatNumber(kpis.countries)} numeric={kpis.countries} format={(n) => formatNumber(Math.round(n))} footer="distintos que compraron" />
+        <StatCard icon={Store} label="Tiendas con ventas" value={`${kpis.stores} de ${activeStores.length}`} numeric={kpis.stores} format={(n) => `${Math.round(n)} de ${activeStores.length}`} footer="tiendas activas" />
+        <StatCard icon={Repeat} label="Upsells aceptados" value={formatNumber(kpis.upsells)} numeric={kpis.upsells} format={(n) => formatNumber(Math.round(n))} footer={`${kpis.upsellRate.toFixed(0)} % de las ventas sumó al menos uno`} />
+        <StatCard icon={TrendingUp} label="Ingresos por upsells" value={formatMoney(kpis.upsellRevenue)} numeric={kpis.upsellRevenue} format={formatMoney} footer={`${kpis.revenue ? ((kpis.upsellRevenue / kpis.revenue) * 100).toFixed(0) : 0} % de los ingresos`} />
       </div>
 
       {/* Desgloses */}
@@ -154,7 +168,9 @@ export function SalesHistory() {
       </div>
 
       {/* Historial */}
-      <Card className="mt-4 overflow-hidden">
+      {/* id="historial": a este lugar lleva "Ver todas" de Últimas ventas del Resumen. */}
+      <Card className="mt-4 scroll-mt-24 overflow-hidden">
+        <span id="historial" />
         <CardHeader
           title="Historial"
           description={`${formatNumber(rows.length)} ${rows.length === 1 ? "venta" : "ventas"} · ${
@@ -162,7 +178,8 @@ export function SalesHistory() {
           } · tocá una para ver el detalle`}
         />
         {/* Todas las ventas, sin paginar. Misma tabla que "Últimas ventas" del Resumen. */}
-        <div className="mt-3">
+        {/* Alto fijo con desplazamiento propio: cambiar el período no cambia el largo de la página. */}
+        <div className="mt-3 h-[36rem] overflow-y-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-surface">
           <SalesTable rows={rows} onSelect={setSelected} selectedId={selected?.id} empty="No hay ventas en este período." />
         </div>
       </Card>

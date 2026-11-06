@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import type { SaleStatus, ProductStatus } from "@/lib/mock-data";
 
@@ -84,6 +87,9 @@ export function StatCard({
   hint,
   icon: Icon,
   footer,
+  spark,
+  numeric,
+  format,
 }: {
   label: string;
   value: string;
@@ -93,21 +99,45 @@ export function StatCard({
   icon?: LucideIcon;
   // Línea de abajo cuando la card no muestra variación.
   footer?: React.ReactNode;
+  // Valores diarios para el mini gráfico de tendencia (opcional).
+  spark?: number[];
+  // Si se pasa, el número sube animado hasta este valor (con `format` para mostrarlo).
+  numeric?: number;
+  format?: (n: number) => string;
 }) {
   const up = (delta ?? 0) >= 0;
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between gap-3">
+    <Card className="group relative overflow-hidden p-5">
+      {/* Patrón de Nexo: puntitos violetas que salen de la esquina del ícono y se desvanecen,
+          con un brillo suave detrás. Decorativo: no se lee ni se toca. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(139,92,246,0.35)_1px,transparent_1.6px)] bg-[length:14px_14px] opacity-60 transition-opacity duration-300 [mask-image:radial-gradient(ellipse_80%_90%_at_100%_0%,black,transparent_70%)] group-hover:opacity-100"
+      />
+      <div aria-hidden className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-violet-500/10 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-3">
         <p className="text-sm text-muted">{label}</p>
         {Icon && (
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-violet-300 ring-1 ring-inset ring-violet-500/20">
+          <span className="-mr-1 -mt-1.5 grid size-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-violet-300 ring-1 ring-inset ring-violet-500/20">
             <Icon className="size-[18px]" />
           </span>
         )}
       </div>
-      <p className={`${Icon ? "-mt-2" : "mt-2"} text-2xl font-semibold tracking-tight tabular-nums`}>{value}</p>
+      {/* El número y el mini gráfico van debajo del ícono, sin chocar con él. */}
+      <div className="relative mt-2 flex items-end justify-between gap-3">
+        <p className="text-2xl font-semibold tracking-tight tabular-nums">
+          {numeric !== undefined && format ? <CountUp value={numeric} format={format} /> : value}
+        </p>
+        {/* Si la card lleva mini gráfico, su lugar queda reservado aunque el período tenga un solo día. */}
+        {spark &&
+          (spark.length > 1 ? (
+            <Sparkline data={spark} className="mb-1 h-8 w-24 shrink-0" />
+          ) : (
+            <span aria-hidden className="mb-1 h-8 w-24 shrink-0" />
+          ))}
+      </div>
       {delta !== undefined && (
-        <p className="mt-2 flex items-center gap-1 text-xs text-muted">
+        <p className="relative mt-2 flex items-center gap-1 text-xs text-muted">
           <span
             className={`inline-flex items-center gap-0.5 font-medium ${
               up ? "text-emerald-400" : "text-rose-400"
@@ -120,7 +150,10 @@ export function StatCard({
           {hint ?? "vs. 30 días anteriores"}
         </p>
       )}
-      {delta === undefined && footer && <p className="mt-2 text-xs text-muted">{footer}</p>}
+      {/* La línea de abajo siempre está, para que la card no cambie de alto al cambiar el período. */}
+      {delta === undefined && (
+        <p className="relative mt-2 text-xs text-muted">{footer ?? <span className="text-subtle">Sin período anterior para comparar</span>}</p>
+      )}
     </Card>
   );
 }
@@ -153,10 +186,13 @@ export function StatusBadge({ status }: { status: SaleStatus | ProductStatus }) 
   );
 }
 
-export function ProductThumb({ color, name }: { color: string; name: string }) {
+// Imagen del producto (por ahora, su inicial sobre un degradé). `size="lg"` para listas destacadas.
+export function ProductThumb({ color, name, size = "md" }: { color: string; name: string; size?: "md" | "lg" }) {
   return (
     <span
-      className={`grid size-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${color} text-xs font-bold text-white/90`}
+      className={`grid shrink-0 place-items-center bg-gradient-to-br ${color} font-bold text-white/90 ${
+        size === "lg" ? "size-14 rounded-xl text-lg" : "size-9 rounded-lg text-xs"
+      }`}
     >
       {name[0]}
     </span>
@@ -202,4 +238,78 @@ export function MeterBar({
       </div>
     </div>
   );
+}
+
+// Mini gráfico de tendencia: línea con degradé violeta, área suave y punto luminoso en el último valor.
+export function Sparkline({ data, className = "" }: { data: number[]; className?: string }) {
+  const id = useId().replace(/:/g, "");
+  const W = 96;
+  const H = 32;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const span = max - min || 1;
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * (W - 4) + 2, H - 3 - ((v - min) / span) * (H - 8)] as const);
+  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const area = `${line} L${pts.at(-1)![0]},${H} L${pts[0][0]},${H} Z`;
+  const [lx, ly] = pts.at(-1)!;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={className} aria-hidden preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`sl-${id}`} x1="0" x2="1">
+          <stop offset="0%" stopColor="#6d28d9" />
+          <stop offset="100%" stopColor="#a78bfa" />
+        </linearGradient>
+        <linearGradient id={`sa-${id}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#sa-${id})`} />
+      <path
+        d={line}
+        fill="none"
+        stroke={`url(#sl-${id})`}
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle cx={lx} cy={ly} r={4} fill="#8b5cf6" opacity={0.25} />
+      <circle cx={lx} cy={ly} r={2} fill="#ede9fe" />
+    </svg>
+  );
+}
+
+// Número que sube animado hasta `value` (en ~0,7 s). Si el valor cambia, anima desde el anterior.
+// Respeta "reducir movimiento" del sistema.
+export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const start = from.current;
+    if (reduce || start === value) {
+      from.current = value;
+      const raf = requestAnimationFrame(() => setShown(value));
+      return () => cancelAnimationFrame(raf);
+    }
+    const t0 = performance.now();
+    const duration = 700;
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / duration);
+      const eased = 1 - (1 - p) ** 3;
+      setShown(start + (value - start) * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else from.current = value;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      from.current = value;
+    };
+  }, [value]);
+
+  return <>{format(shown)}</>;
 }
